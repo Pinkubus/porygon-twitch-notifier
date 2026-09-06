@@ -1,4 +1,3 @@
 __pycache__/
 *.pyc
 .env
-new_refresh_token.txt

@@ -2,15 +2,15 @@ name: Check Twitch live status
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
-  workflow_dispatch: {}
+    - cron: "0 */5 * * *"
+  workflow_dispatch:
+    inputs:
+      max_seconds:
+        description: "Override loop duration (seconds) — for quick test runs"
+        required: false
 
 permissions:
   contents: write
-
-concurrency:
-  group: twitch-notifier
-  cancel-in-progress: false
 
 jobs:
   check:
@@ -24,30 +24,18 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Run notifier
+      - name: Configure git identity
+        run: |
+          git config user.name "porygon-bot"
+          git config user.email "actions@users.noreply.github.com"
+
+      - name: Run continuous loop
         env:
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
           TWITCH_REFRESH_TOKEN: ${{ secrets.TWITCH_REFRESH_TOKEN }}
           TWITCH_STREAMS_WEBHOOK_URL: ${{ secrets.TWITCH_STREAMS_WEBHOOK_URL }}
           TWITCH_CHANNELS: ${{ vars.TWITCH_CHANNELS }}
-        run: python notifier.py
-
-      - name: Persist rotated refresh token
-        if: always()
-        env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
-        run: |
-          if [ -f new_refresh_token.txt ]; then
-            gh secret set TWITCH_REFRESH_TOKEN --repo ${{ github.repository }} < new_refresh_token.txt
-            rm new_refresh_token.txt
-          fi
+          LOOP_MAX_SECONDS: ${{ github.event.inputs.max_seconds }}
+        run: python loop.py
 
-      - name: Commit updated state
-        run: |
-          git config user.name "porygon-bot"
-          git config user.email "actions@users.noreply.github.com"
-          if ! git diff --quiet -- state.json; then
-            git add state.json
-            git commit -m "Update live/offline state [skip ci]"
-            git push
-          fi
