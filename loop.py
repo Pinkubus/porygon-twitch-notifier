@@ -91,7 +91,7 @@ def main() -> int:
         return 1
     access_token, refresh_token = refreshed
 
-    max_run_seconds = int(os.environ.get("LOOP_MAX_SECONDS", _DEFAULT_MAX_RUN_SECONDS))
+    max_run_seconds = int(os.environ.get("LOOP_MAX_SECONDS") or _DEFAULT_MAX_RUN_SECONDS)
     channels = twitch_api.get_channels()
     state = _load_state()
     logger.info(f"Starting loop: channels={channels}, poll={_POLL_SECONDS}s, "
