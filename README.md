@@ -31,7 +31,7 @@ Repo variable (**Settings → Secrets and variables → Actions → Variables**)
 
 | Variable | Description |
 |---|---|
-| `TWITCH_CHANNELS` | Comma-separated Twitch logins to watch (defaults to `fondlyregarded,erodite,poogbooklet` if unset) |
+| `TWITCH_CHANNELS` | Comma-separated Twitch logins to watch (defaults to `fondlyregarded,erodite,poogbooklet,onepuffman` if unset) |
 
 ## Getting/renewing the refresh token
 

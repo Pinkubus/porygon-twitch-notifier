@@ -35,7 +35,7 @@ import requests
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("porygon.notifier")
 
-_DEFAULT_CHANNELS = ["fondlyregarded", "erodite", "poogbooklet"]
+_DEFAULT_CHANNELS = ["fondlyregarded", "erodite", "poogbooklet", "onepuffman"]
 _STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state.json")
 
 _TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token"
