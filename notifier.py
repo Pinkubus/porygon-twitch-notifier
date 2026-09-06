@@ -41,6 +41,7 @@ _STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state.js
 _TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token"
 _TWITCH_API = "https://api.twitch.tv/helix"
 _BOT_NAME = "Porygon"
+_NEW_REFRESH_TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "new_refresh_token.txt")
 
 
 def _load_state() -> dict:
@@ -86,7 +87,15 @@ def _get_access_token() -> Optional[str]:
             "clients). Re-run authorize.py and update the TWITCH_REFRESH_TOKEN secret."
         )
         return None
-    return resp.json()["access_token"]
+
+    body = resp.json()
+    # Twitch rotates refresh tokens on use — persist the new one so the
+    # workflow can update the stored secret, or the next run will fail.
+    new_refresh = body.get("refresh_token")
+    if new_refresh and new_refresh != refresh_token:
+        with open(_NEW_REFRESH_TOKEN_FILE, "w") as f:
+            f.write(new_refresh)
+    return body["access_token"]
 
 
 def _get_live_streams(client_id: str, token: str, channels: list[str]) -> dict[str, dict]:

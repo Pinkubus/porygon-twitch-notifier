@@ -25,6 +25,7 @@ Repo secrets (**Settings → Secrets and variables → Actions → Secrets**):
 | `TWITCH_CLIENT_ID` | Twitch application client ID (Public client type) |
 | `TWITCH_REFRESH_TOKEN` | OAuth refresh token from the device-code flow (see below) |
 | `TWITCH_STREAMS_WEBHOOK_URL` | Discord webhook URL to post notifications to |
+| `GH_PAT` | A token with `repo` scope, used by the workflow to update `TWITCH_REFRESH_TOKEN` when Twitch rotates it (`gh auth token` works) |
 
 Repo variable (**Settings → Secrets and variables → Actions → Variables**), optional:
 
@@ -35,8 +36,14 @@ Repo variable (**Settings → Secrets and variables → Actions → Variables**)
 ## Getting/renewing the refresh token
 
 Twitch **Public** client refresh tokens expire **30 days** after being
-issued, no matter how often they're used — so this needs to be redone
-roughly monthly:
+issued if unused. However, Twitch also rotates the refresh token on every
+use — the workflow automatically persists the rotated token back into the
+`TWITCH_REFRESH_TOKEN` secret after each run (via the `GH_PAT` secret), so
+you normally shouldn't need to do this manually at all.
+
+If the workflow does start failing (e.g. `GH_PAT` expired or was revoked,
+breaking the auto-persist step), check the Actions tab — a failed run means
+the refresh token most likely became invalid and needs to be renewed:
 
 ```
 pip install requests
@@ -47,5 +54,3 @@ python authorize.py
 Follow the printed URL, enter the code, then copy the printed
 `refresh_token` value into the `TWITCH_REFRESH_TOKEN` secret.
 
-If the workflow starts failing, check the Actions tab — a failed run means
-the refresh token most likely expired and needs to be renewed this way.

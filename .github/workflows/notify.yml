@@ -32,6 +32,16 @@ jobs:
           TWITCH_CHANNELS: ${{ vars.TWITCH_CHANNELS }}
         run: python notifier.py
 
+      - name: Persist rotated refresh token
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -f new_refresh_token.txt ]; then
+            gh secret set TWITCH_REFRESH_TOKEN --body-file new_refresh_token.txt --repo ${{ github.repository }}
+            rm new_refresh_token.txt
+          fi
+
       - name: Commit updated state
         run: |
           git config user.name "porygon-bot"
