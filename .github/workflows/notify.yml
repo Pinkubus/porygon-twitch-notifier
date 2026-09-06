@@ -2,7 +2,7 @@ name: Check Twitch live status
 
 on:
   schedule:
-    - cron: "0 */5 * * *"
+    - cron: "0 */6 * * *"
   workflow_dispatch:
     inputs:
       max_seconds:
@@ -11,6 +11,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: twitch-notifier
+  cancel-in-progress: false
 
 jobs:
   check:

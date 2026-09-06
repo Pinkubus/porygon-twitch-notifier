@@ -27,7 +27,7 @@ logger = logging.getLogger("porygon.loop")
 
 _STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state.json")
 _POLL_SECONDS = 30
-_DEFAULT_MAX_RUN_SECONDS = 5 * 3600 + 50 * 60  # 5h50m, under the 6h Actions job limit
+_DEFAULT_MAX_RUN_SECONDS = 5 * 3600 + 55 * 60  # 5h55m, just under the 6h Actions job limit
 
 
 def _load_state() -> dict:

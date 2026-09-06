@@ -12,14 +12,15 @@ minutes, which isn't fast enough for near-real-time alerts. Instead:
 
 - `loop.py` runs as a long-lived job that checks `/streams` every ~30
   seconds and posts a webhook message for any channel that just
-  transitioned offline → live. It exits cleanly after ~5h50m (just under
+  transitioned offline → live. It exits cleanly after ~5h55m (just under
   GitHub's 6-hour job limit).
-- `.github/workflows/notify.yml` restarts `loop.py` via `schedule` every 5
-  hours — since a job exits at 5h50m and the next one starts at the 5h
-  mark, there's a ~50-minute overlap that guarantees continuous coverage
-  even if a scheduled trigger is delayed. It can also be started manually
-  via the "Run workflow" button (`workflow_dispatch`), optionally with a
-  short `max_seconds` override for quick test runs.
+- `.github/workflows/notify.yml` restarts `loop.py` via `schedule` every 6
+  hours, leaving only a small (~5 minute) gap between runs. Runs are
+  strictly serialized (`concurrency`, no overlap) since two instances
+  racing to refresh the Twitch token at the same time will invalidate each
+  other's token. It can also be started manually via the "Run workflow"
+  button (`workflow_dispatch`), optionally with a short `max_seconds`
+  override for quick test runs.
 - `state.json` tracks last-known live/offline status per channel, and
   `twitch_api.py` holds the shared Twitch/Discord request logic used by
   both `loop.py` and the one-shot `notifier.py` (kept for manual testing).
