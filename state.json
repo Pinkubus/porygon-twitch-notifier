@@ -10,5 +10,9 @@
   "poogbooklet": {
     "live": false,
     "stream_id": ""
+  },
+  "onepuffman": {
+    "live": false,
+    "stream_id": ""
   }
 }
