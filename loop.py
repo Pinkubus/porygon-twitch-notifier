@@ -21,6 +21,8 @@ import logging
 import subprocess
 
 import twitch_api
+import discord_roles
+import reaction_roles
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("porygon.loop")
@@ -50,22 +52,22 @@ def _persist_refresh_token(new_token: str):
     logger.info("Rotated refresh token persisted to secret")
 
 
-def _commit_state():
-    subprocess.run(["git", "add", "state.json"], check=True)
+def _commit_files(paths: list[str], message: str):
+    subprocess.run(["git", "add", *paths], check=True)
     if subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode == 0:
         return  # nothing staged
-    subprocess.run(["git", "commit", "-m", "Update live/offline state [skip ci]"], check=True)
+    subprocess.run(["git", "commit", "-m", message], check=True)
     for _ in range(3):
         if subprocess.run(["git", "push"]).returncode == 0:
             return
         subprocess.run(["git", "pull", "--rebase"])
-    logger.warning("Failed to push state.json after retries")
+    logger.warning(f"Failed to push {paths} after retries")
 
 
 def _save_state_and_commit(state: dict):
     with open(_STATE_FILE, "w") as f:
         json.dump(state, f, indent=2)
-    _commit_state()
+    _commit_files(["state.json"], "Update live/offline state [skip ci]")
 
 
 def _refresh(client_id: str, refresh_token: str) -> tuple[str, str] | None:
@@ -97,6 +99,13 @@ def main() -> int:
     logger.info(f"Starting loop: channels={channels}, poll={_POLL_SECONDS}s, "
                 f"max_run={max_run_seconds}s")
 
+    reaction_roles_enabled = reaction_roles.is_configured()
+    bot_user_id = None
+    if reaction_roles_enabled:
+        bot_user_id = discord_roles.get_bot_user_id(os.environ["DISCORD_BOT_TOKEN"])
+        reaction_roles_enabled = bot_user_id is not None
+        logger.info(f"Reaction roles: {'enabled' if reaction_roles_enabled else 'disabled (setup incomplete)'}")
+
     start = time.time()
     while time.time() - start < max_run_seconds:
         loop_start = time.time()
@@ -126,6 +135,9 @@ def main() -> int:
 
         if state_changed:
             _save_state_and_commit(state)
+
+        if reaction_roles_enabled and reaction_roles.sync(bot_user_id):
+            _commit_files(["reaction_state.json"], "Update reaction-role state [skip ci]")
 
         elapsed = time.time() - loop_start
         time.sleep(max(0.0, _POLL_SECONDS - elapsed))

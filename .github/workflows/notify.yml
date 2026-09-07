@@ -41,5 +41,10 @@ jobs:
           TWITCH_CHANNELS: ${{ vars.TWITCH_CHANNELS }}
           GH_TOKEN: ${{ secrets.GH_PAT }}
           LOOP_MAX_SECONDS: ${{ github.event.inputs.max_seconds }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ vars.DISCORD_GUILD_ID }}
+          DISCORD_REACTION_CHANNEL_ID: ${{ vars.DISCORD_REACTION_CHANNEL_ID }}
+          DISCORD_REACTION_MESSAGE_ID: ${{ vars.DISCORD_REACTION_MESSAGE_ID }}
+          REACTION_ROLE_MAP: ${{ vars.REACTION_ROLE_MAP }}
         run: python loop.py
 

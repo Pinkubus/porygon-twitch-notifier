@@ -27,6 +27,12 @@ minutes, which isn't fast enough for near-real-time alerts. Instead:
 - Rotated refresh tokens and state changes are committed/persisted
   immediately as they happen during the loop, not just at job end, so a
   killed or cancelled job loses as little progress as possible.
+- Each loop iteration also syncs **reaction roles**: `discord_roles.py`
+  polls the reactions on a designated "Pick your roles!" message (posted
+  once via `setup_reaction_roles.py`) and grants/revokes the mapped role
+  via the real Discord bot account whenever someone reacts/un-reacts.
+  `reaction_roles.py` diffs against `reaction_state.json` to only act on
+  changes. This is skipped automatically if the Discord bot vars aren't set.
 
 ## Required setup
 
@@ -38,12 +44,21 @@ Repo secrets (**Settings → Secrets and variables → Actions → Secrets**):
 | `TWITCH_REFRESH_TOKEN` | OAuth refresh token from the device-code flow (see below) |
 | `TWITCH_STREAMS_WEBHOOK_URL` | Discord webhook URL to post notifications to |
 | `GH_PAT` | A token with `repo` scope, used by the workflow to update `TWITCH_REFRESH_TOKEN` when Twitch rotates it (`gh auth token` works) |
+| `DISCORD_BOT_TOKEN` | Token for the dedicated "Porygon" bot application (Developer Portal → Bot tab). Needed only for reaction roles. |
 
-Repo variable (**Settings → Secrets and variables → Actions → Variables**), optional:
+Repo variables (**Settings → Secrets and variables → Actions → Variables**), optional:
 
 | Variable | Description |
 |---|---|
 | `TWITCH_CHANNELS` | Comma-separated Twitch logins to watch (defaults to `fondlyregarded,erodite,poogbooklet,onepuffman` if unset) |
+| `DISCORD_GUILD_ID` | Server ID the bot manages roles in |
+| `DISCORD_REACTION_CHANNEL_ID` | Channel the "Pick your roles!" message lives in |
+| `DISCORD_REACTION_MESSAGE_ID` | ID of that message, printed by `setup_reaction_roles.py` |
+| `REACTION_ROLE_MAP` | JSON `{"emoji": "role_id", ...}` mapping reactions to roles |
+
+The bot's role must sit **above** any role it needs to grant/revoke in the
+server's role hierarchy (Server Settings → Roles), and it needs the
+**Manage Roles** permission.
 
 ## Getting/renewing the refresh token
 
