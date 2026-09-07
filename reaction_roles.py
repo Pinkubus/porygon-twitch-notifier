@@ -56,17 +56,26 @@ def sync(bot_user_id: str) -> bool:
         current = set(discord_roles.get_reaction_users(channel_id, message_id, emoji, token))
         current.discard(bot_user_id)
         previous = set(state.get(emoji, []))
+        # Only settle users whose grant/revoke actually succeeded — leave
+        # failures (e.g. rate limits) in their old state so they're retried.
+        settled = set(previous)
 
         for user_id in current - previous:
             if discord_roles.add_member_role(guild_id, user_id, role_id, token):
                 logger.info(f"Granted role {role_id} ({emoji}) to {user_id}")
+                settled.add(user_id)
+            else:
+                logger.warning(f"Will retry granting role {role_id} ({emoji}) to {user_id}")
         for user_id in previous - current:
             if discord_roles.remove_member_role(guild_id, user_id, role_id, token):
                 logger.info(f"Revoked role {role_id} ({emoji}) from {user_id}")
+                settled.discard(user_id)
+            else:
+                logger.warning(f"Will retry revoking role {role_id} ({emoji}) from {user_id}")
 
-        if current != previous:
+        if settled != previous:
             changed = True
-            state[emoji] = sorted(current)
+            state[emoji] = sorted(settled)
 
     if changed:
         save_state(state)

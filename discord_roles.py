@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import json
 import logging
+import time
 from typing import Optional
 from urllib.parse import quote
 
@@ -110,10 +111,18 @@ def get_reaction_users(channel_id: str, message_id: str, emoji: str, token: str)
     return users
 
 
+def _request_with_rate_limit_retry(method, url: str, token: str) -> requests.Response:
+    resp = method(url, headers=_headers(token), timeout=10)
+    if resp.status_code == 429:
+        retry_after = resp.json().get("retry_after", 1.0)
+        time.sleep(retry_after + 0.1)
+        resp = method(url, headers=_headers(token), timeout=10)
+    return resp
+
+
 def add_member_role(guild_id: str, user_id: str, role_id: str, token: str) -> bool:
-    resp = requests.put(
-        f"{DISCORD_API}/guilds/{guild_id}/members/{user_id}/roles/{role_id}",
-        headers=_headers(token), timeout=10,
+    resp = _request_with_rate_limit_retry(
+        requests.put, f"{DISCORD_API}/guilds/{guild_id}/members/{user_id}/roles/{role_id}", token,
     )
     if resp.status_code != 204:
         logger.warning(f"Failed to add role {role_id} to {user_id} {resp.status_code}: {resp.text[:200]}")
@@ -122,9 +131,8 @@ def add_member_role(guild_id: str, user_id: str, role_id: str, token: str) -> bo
 
 
 def remove_member_role(guild_id: str, user_id: str, role_id: str, token: str) -> bool:
-    resp = requests.delete(
-        f"{DISCORD_API}/guilds/{guild_id}/members/{user_id}/roles/{role_id}",
-        headers=_headers(token), timeout=10,
+    resp = _request_with_rate_limit_retry(
+        requests.delete, f"{DISCORD_API}/guilds/{guild_id}/members/{user_id}/roles/{role_id}", token,
     )
     if resp.status_code != 204:
         logger.warning(f"Failed to remove role {role_id} from {user_id} {resp.status_code}: {resp.text[:200]}")
