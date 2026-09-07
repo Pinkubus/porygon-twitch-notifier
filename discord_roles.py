@@ -65,6 +65,17 @@ def post_message(channel_id: str, token: str, embed: dict) -> Optional[str]:
     return resp.json()["id"]
 
 
+def edit_message(channel_id: str, message_id: str, token: str, embed: dict) -> bool:
+    resp = requests.patch(
+        f"{DISCORD_API}/channels/{channel_id}/messages/{message_id}",
+        headers=_headers(token), json={"embeds": [embed]}, timeout=10,
+    )
+    if resp.status_code != 200:
+        logger.warning(f"Failed to edit message {resp.status_code}: {resp.text[:200]}")
+        return False
+    return True
+
+
 def add_own_reaction(channel_id: str, message_id: str, emoji: str, token: str) -> bool:
     resp = requests.put(
         f"{DISCORD_API}/channels/{channel_id}/messages/{message_id}/reactions/{quote(emoji)}/@me",
