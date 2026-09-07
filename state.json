@@ -12,7 +12,7 @@
     "stream_id": ""
   },
   "onepuffman": {
-    "live": false,
-    "stream_id": ""
+    "live": true,
+    "stream_id": "321312889690"
   }
 }
