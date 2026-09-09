@@ -131,9 +131,10 @@ def get_reaction_users(channel_id: str, message_id: str, emoji: str, token: str)
         params = {"limit": 100}
         if after:
             params["after"] = after
-        resp = requests.get(
+        resp = _request_with_rate_limit_retry(
+            requests.get,
             f"{DISCORD_API}/channels/{channel_id}/messages/{message_id}/reactions/{quote(emoji)}",
-            headers=_headers(token), params=params, timeout=10,
+            token, params=params,
         )
         if resp.status_code != 200:
             logger.warning(f"Failed to fetch reactions {emoji} {resp.status_code}: {resp.text[:200]}")
@@ -146,12 +147,12 @@ def get_reaction_users(channel_id: str, message_id: str, emoji: str, token: str)
     return users
 
 
-def _request_with_rate_limit_retry(method, url: str, token: str) -> requests.Response:
-    resp = method(url, headers=_headers(token), timeout=10)
+def _request_with_rate_limit_retry(method, url: str, token: str, **kwargs) -> requests.Response:
+    resp = method(url, headers=_headers(token), timeout=10, **kwargs)
     if resp.status_code == 429:
         retry_after = resp.json().get("retry_after", 1.0)
         time.sleep(retry_after + 0.1)
-        resp = method(url, headers=_headers(token), timeout=10)
+        resp = method(url, headers=_headers(token), timeout=10, **kwargs)
     return resp
 
 
