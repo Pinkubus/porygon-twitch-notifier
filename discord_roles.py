@@ -114,9 +114,8 @@ def edit_message(channel_id: str, message_id: str, token: str, embed: dict) -> b
 
 
 def add_own_reaction(channel_id: str, message_id: str, emoji: str, token: str) -> bool:
-    resp = requests.put(
-        f"{DISCORD_API}/channels/{channel_id}/messages/{message_id}/reactions/{quote(emoji)}/@me",
-        headers=_headers(token), timeout=10,
+    resp = _request_with_rate_limit_retry(
+        requests.put, f"{DISCORD_API}/channels/{channel_id}/messages/{message_id}/reactions/{quote(emoji)}/@me", token,
     )
     if resp.status_code != 204:
         logger.warning(f"Failed to add reaction {emoji} {resp.status_code}: {resp.text[:200]}")
