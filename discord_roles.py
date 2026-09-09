@@ -47,6 +47,34 @@ def get_guild_roles(guild_id: str, token: str) -> list[dict]:
     return resp.json()
 
 
+def get_guild_text_channels(guild_id: str, token: str) -> list[dict]:
+    """Text channels (type 0) in the guild, for message-scanning features."""
+    resp = requests.get(f"{DISCORD_API}/guilds/{guild_id}/channels", headers=_headers(token), timeout=10)
+    if resp.status_code != 200:
+        logger.warning(f"Failed to fetch guild channels {resp.status_code}: {resp.text[:200]}")
+        return []
+    return [c for c in resp.json() if c.get("type") == 0]
+
+
+def get_channel_messages(
+    channel_id: str, token: str, after: Optional[str] = None,
+    before: Optional[str] = None, limit: int = 100,
+) -> list[dict]:
+    """Raw message objects (newest-first), per Discord's default ordering."""
+    params: dict = {"limit": limit}
+    if after:
+        params["after"] = after
+    if before:
+        params["before"] = before
+    resp = requests.get(
+        f"{DISCORD_API}/channels/{channel_id}/messages", headers=_headers(token), params=params, timeout=10,
+    )
+    if resp.status_code != 200:
+        logger.warning(f"Failed to fetch messages for {channel_id} {resp.status_code}: {resp.text[:200]}")
+        return []
+    return resp.json()
+
+
 def get_bot_user_id(token: str) -> Optional[str]:
     resp = requests.get(f"{DISCORD_API}/users/@me", headers=_headers(token), timeout=10)
     if resp.status_code != 200:

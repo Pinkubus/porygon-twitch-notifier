@@ -23,6 +23,7 @@ import subprocess
 import twitch_api
 import discord_roles
 import reaction_roles
+import quotes
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("porygon.loop")
@@ -100,11 +101,14 @@ def main() -> int:
                 f"max_run={max_run_seconds}s")
 
     reaction_roles_enabled = reaction_roles.is_configured()
+    quotes_enabled = quotes.is_configured()
     bot_user_id = None
-    if reaction_roles_enabled:
+    if reaction_roles_enabled or quotes_enabled:
         bot_user_id = discord_roles.get_bot_user_id(os.environ["DISCORD_BOT_TOKEN"])
-        reaction_roles_enabled = bot_user_id is not None
+        reaction_roles_enabled = reaction_roles_enabled and bot_user_id is not None
+        quotes_enabled = quotes_enabled and bot_user_id is not None
         logger.info(f"Reaction roles: {'enabled' if reaction_roles_enabled else 'disabled (setup incomplete)'}")
+        logger.info(f"Quotes: {'enabled' if quotes_enabled else 'disabled (setup incomplete)'}")
 
     start = time.time()
     while time.time() - start < max_run_seconds:
@@ -138,6 +142,9 @@ def main() -> int:
 
         if reaction_roles_enabled and reaction_roles.sync(bot_user_id):
             _commit_files(["reaction_state.json"], "Update reaction-role state [skip ci]")
+
+        if quotes_enabled and quotes.scan_and_process(bot_user_id):
+            _commit_files(["quotes.json", "quotes_scan_state.json"], "Update quotes [skip ci]")
 
         elapsed = time.time() - loop_start
         time.sleep(max(0.0, _POLL_SECONDS - elapsed))

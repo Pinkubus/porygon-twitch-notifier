@@ -1,0 +1,32 @@
+name: Find common phrases
+
+on:
+  workflow_dispatch:
+    inputs:
+      history_limit:
+        description: "Messages to scan per channel"
+        required: false
+      min_occurrences:
+        description: "Minimum times said to be flagged"
+        required: false
+      min_authors:
+        description: "Minimum distinct people who said it"
+        required: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt
+      - name: Scan
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ vars.DISCORD_GUILD_ID }}
+          HISTORY_LIMIT: ${{ github.event.inputs.history_limit }}
+          MIN_OCCURRENCES: ${{ github.event.inputs.min_occurrences }}
+          MIN_AUTHORS: ${{ github.event.inputs.min_authors }}
+        run: python find_common_phrases.py
