@@ -29,7 +29,7 @@ SCAN_STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "quot
 
 ADD_PREFIX = "!addquote "
 SAVED_REACTION = "📝"
-CALLBACK_REACTION = "™️"
+CALLBACK_REACTION = "™"  # Discord rejects the fully-qualified "™️" (with VS16) as "Unknown Emoji"
 
 
 def _load_json(path: str, default):
