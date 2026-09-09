@@ -21,10 +21,30 @@ from collections import defaultdict
 import discord_roles
 
 _WORD_RE = re.compile(r"\S+")
+_MENTION_ONLY_RE = re.compile(r"^(<@!?\d+>\s*)+$")
+_EMOJI_ONLY_RE = re.compile(r"^(<a?:\w+:\d+>\s*)+$")
+_COMMAND_PREFIXES = ("!", "$", "/", "~", ".", "?")
+_FILLER_STOPLIST = {
+    "same", "yeah", "yea", "yes", "yesss", "yessss", "yup", "true", "facts",
+    "exactly", "bruh", "lmao", "lmaooo", "lol", "lolol", "haha", "hahaha",
+    "hahahaha", "hahahahaha", "do it", "like", "i know", "me too", "dude yes",
+    "ok", "okay", "nice", "cool", "wow", "oof", "rip", "real", "mood", "this",
+    "fr", "ong", "lets goooo", "lets go",
+}
 
 
 def _normalize(text: str) -> str:
     return " ".join(text.strip().lower().split())
+
+
+def _is_noise(content: str, norm: str) -> bool:
+    if content.startswith(_COMMAND_PREFIXES):
+        return True
+    if _MENTION_ONLY_RE.match(content) or _EMOJI_ONLY_RE.match(content):
+        return True
+    if norm in _FILLER_STOPLIST:
+        return True
+    return False
 
 
 def _fetch_recent_messages(channel_id: str, token: str, limit: int) -> list[dict]:
@@ -65,10 +85,12 @@ def main() -> int:
             if author_id == bot_user_id:
                 continue
             content = (msg.get("content") or "").strip()
-            if not content or content.lower().startswith("!"):
+            if not content:
                 continue
 
             norm = _normalize(content)
+            if _is_noise(content, norm):
+                continue
             if 4 <= len(norm) <= 200:
                 entry = exact.setdefault(norm, {"count": 0, "authors": set(), "channel_id": channel_id, "message_id": msg["id"]})
                 entry["count"] += 1
