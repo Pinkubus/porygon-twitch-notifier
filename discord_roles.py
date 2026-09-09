@@ -55,6 +55,14 @@ def get_bot_user_id(token: str) -> Optional[str]:
     return resp.json()["id"]
 
 
+def get_member_roles(guild_id: str, user_id: str, token: str) -> Optional[set[str]]:
+    resp = requests.get(f"{DISCORD_API}/guilds/{guild_id}/members/{user_id}", headers=_headers(token), timeout=10)
+    if resp.status_code != 200:
+        logger.warning(f"Failed to fetch member {user_id} {resp.status_code}: {resp.text[:200]}")
+        return None
+    return set(resp.json().get("roles", []))
+
+
 def post_message(channel_id: str, token: str, embed: dict) -> Optional[str]:
     resp = requests.post(
         f"{DISCORD_API}/channels/{channel_id}/messages",
