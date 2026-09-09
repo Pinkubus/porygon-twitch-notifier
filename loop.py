@@ -54,6 +54,9 @@ def _persist_refresh_token(new_token: str):
 
 
 def _commit_files(paths: list[str], message: str):
+    paths = [p for p in paths if os.path.exists(p)]
+    if not paths:
+        return
     subprocess.run(["git", "add", *paths], check=True)
     if subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode == 0:
         return  # nothing staged
