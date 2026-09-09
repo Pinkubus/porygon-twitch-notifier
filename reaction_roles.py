@@ -8,6 +8,7 @@ import os
 import json
 import logging
 
+import activity_log
 import discord_roles
 
 logger = logging.getLogger("porygon.reaction_roles")
@@ -63,15 +64,19 @@ def sync(bot_user_id: str) -> bool:
         for user_id in current - previous:
             if discord_roles.add_member_role(guild_id, user_id, role_id, token):
                 logger.info(f"Granted role {role_id} ({emoji}) to {user_id}")
+                activity_log.log(f"\u2705 Granted role {emoji} to {user_id}")
                 settled.add(user_id)
             else:
                 logger.warning(f"Will retry granting role {role_id} ({emoji}) to {user_id}")
+                activity_log.log(f"\u274c Failed to grant role {emoji} to {user_id} (will retry)")
         for user_id in previous - current:
             if discord_roles.remove_member_role(guild_id, user_id, role_id, token):
                 logger.info(f"Revoked role {role_id} ({emoji}) from {user_id}")
+                activity_log.log(f"\u2705 Revoked role {emoji} from {user_id}")
                 settled.discard(user_id)
             else:
                 logger.warning(f"Will retry revoking role {role_id} ({emoji}) from {user_id}")
+                activity_log.log(f"\u274c Failed to revoke role {emoji} from {user_id} (will retry)")
 
         if settled != previous:
             changed = True

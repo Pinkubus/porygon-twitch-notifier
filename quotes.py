@@ -20,6 +20,7 @@ import json
 import logging
 import time
 
+import activity_log
 import discord_roles
 
 logger = logging.getLogger("porygon.quotes")
@@ -125,12 +126,22 @@ def scan_and_process(bot_user_id: str) -> bool:
                     })
                     quote_texts_lower.append(text.lower())
                     changed_quotes = True
-                    discord_roles.add_own_reaction(channel_id, msg_id, SAVED_REACTION, token)
+                    if discord_roles.add_own_reaction(channel_id, msg_id, SAVED_REACTION, token):
+                        logger.info(f"Saved quote: \"{text[:80]}\"")
+                        activity_log.log(f"\u2705 Quote saved: \"{text[:80]}\"")
+                    else:
+                        logger.warning(f"Quote saved but confirm reaction failed: \"{text[:80]}\"")
+                        activity_log.log(f"\u26a0\ufe0f Quote saved but confirm reaction failed: \"{text[:80]}\"")
                 continue
 
             lowered = content.lower()
             if any(qt and qt in lowered for qt in quote_texts_lower):
-                discord_roles.add_own_reaction(channel_id, msg_id, CALLBACK_REACTION, token)
+                if discord_roles.add_own_reaction(channel_id, msg_id, CALLBACK_REACTION, token):
+                    logger.info(f"Quote callback reaction added ({channel_id}/{msg_id})")
+                    activity_log.log("\u2705 Quote callback reaction added")
+                else:
+                    logger.warning(f"Quote callback reaction failed ({channel_id}/{msg_id})")
+                    activity_log.log("\u274c Quote callback reaction failed")
 
         scan_state[channel_id] = max_id
         changed_scan = True

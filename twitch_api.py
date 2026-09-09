@@ -10,6 +10,8 @@ from typing import Optional
 
 import requests
 
+import activity_log
+
 logger = logging.getLogger("porygon.twitch_api")
 
 DEFAULT_CHANNELS = ["fondlyregarded", "erodite", "poogbooklet", "onepuffman"]
@@ -93,3 +95,6 @@ def post_live_notification(login: str, stream: dict, avatar_url: str = ""):
     resp = requests.post(webhook_url, json=payload, timeout=10)
     if resp.status_code not in (200, 204):
         logger.warning(f"Discord webhook post failed {resp.status_code}: {resp.text[:200]}")
+        activity_log.log(f"\u274c Twitch: Discord notification failed for {login} ({resp.status_code})")
+    else:
+        activity_log.log(f"\u2705 Twitch: {login} went live \u2014 Discord notified")

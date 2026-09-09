@@ -20,6 +20,7 @@ import time
 import logging
 import subprocess
 
+import activity_log
 import twitch_api
 import discord_roles
 import reaction_roles
@@ -148,6 +149,9 @@ def main() -> int:
 
         if quotes_enabled and quotes.scan_and_process(bot_user_id):
             _commit_files(["quotes.json", "quotes_scan_state.json"], "Update quotes [skip ci]")
+
+        if activity_log.flush_if_dirty():
+            _commit_files(["activity.log"], "Update activity log [skip ci]")
 
         elapsed = time.time() - loop_start
         time.sleep(max(0.0, _POLL_SECONDS - elapsed))
