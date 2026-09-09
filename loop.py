@@ -118,40 +118,44 @@ def main() -> int:
     while time.time() - start < max_run_seconds:
         loop_start = time.time()
 
-        live, status = twitch_api.get_live_streams(client_id, access_token, channels)
-        if status == 401:
-            refreshed = _refresh(client_id, refresh_token)
-            if not refreshed:
-                logger.error("Re-auth required — refresh token invalid")
-                return 1
-            access_token, refresh_token = refreshed
+        try:
             live, status = twitch_api.get_live_streams(client_id, access_token, channels)
+            if status == 401:
+                refreshed = _refresh(client_id, refresh_token)
+                if not refreshed:
+                    logger.error("Re-auth required — refresh token invalid")
+                    return 1
+                access_token, refresh_token = refreshed
+                live, status = twitch_api.get_live_streams(client_id, access_token, channels)
 
-        newly_live = [c for c in channels if c in live and not state.get(c, {}).get("live")]
-        state_changed = any(
-            (c in live) != state.get(c, {}).get("live", False) for c in channels
-        )
-        avatars = twitch_api.get_user_avatars(client_id, access_token, newly_live)
+            newly_live = [c for c in channels if c in live and not state.get(c, {}).get("live")]
+            state_changed = any(
+                (c in live) != state.get(c, {}).get("live", False) for c in channels
+            )
+            avatars = twitch_api.get_user_avatars(client_id, access_token, newly_live)
 
-        for c in channels:
-            is_live = c in live
-            was_live = state.get(c, {}).get("live", False)
-            if is_live and not was_live:
-                logger.info(f"{c} just went live — notifying")
-                twitch_api.post_live_notification(c, live[c], avatars.get(c, ""))
-            state[c] = {"live": is_live, "stream_id": live.get(c, {}).get("id", "")}
+            for c in channels:
+                is_live = c in live
+                was_live = state.get(c, {}).get("live", False)
+                if is_live and not was_live:
+                    logger.info(f"{c} just went live — notifying")
+                    twitch_api.post_live_notification(c, live[c], avatars.get(c, ""))
+                state[c] = {"live": is_live, "stream_id": live.get(c, {}).get("id", "")}
 
-        if state_changed:
-            _save_state_and_commit(state)
+            if state_changed:
+                _save_state_and_commit(state)
 
-        if reaction_roles_enabled and reaction_roles.sync(bot_user_id):
-            _commit_files(["reaction_state.json"], "Update reaction-role state [skip ci]")
+            if reaction_roles_enabled and reaction_roles.sync(bot_user_id):
+                _commit_files(["reaction_state.json"], "Update reaction-role state [skip ci]")
 
-        if quotes_enabled and quotes.scan_and_process(bot_user_id):
-            _commit_files(["quotes.json", "quotes_scan_state.json"], "Update quotes [skip ci]")
+            if quotes_enabled and quotes.scan_and_process(bot_user_id):
+                _commit_files(["quotes.json", "quotes_scan_state.json"], "Update quotes [skip ci]")
 
-        if activity_log.flush_if_dirty():
-            _commit_files(["activity.log"], "Update activity log [skip ci]")
+            if activity_log.flush_if_dirty():
+                _commit_files(["activity.log"], "Update activity log [skip ci]")
+        except Exception as e:
+            # A transient network/API hiccup shouldn't kill a multi-hour job — log and retry next cycle.
+            logger.warning(f"Cycle failed, will retry next cycle: {e}")
 
         elapsed = time.time() - loop_start
         time.sleep(max(0.0, _POLL_SECONDS - elapsed))
