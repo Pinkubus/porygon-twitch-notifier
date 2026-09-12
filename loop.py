@@ -46,12 +46,38 @@ def _load_state() -> dict:
 
 
 def _persist_refresh_token(new_token: str):
+    """Best-effort: never raises, so a failed persist can't discard the new
+    token from the caller's in-memory state (that would strand the process
+    on an already-rotated, now-invalid refresh_token)."""
     repo = os.environ["GITHUB_REPOSITORY"]
-    subprocess.run(
-        ["gh", "secret", "set", "TWITCH_REFRESH_TOKEN", "--repo", repo],
-        input=new_token, text=True, check=True,
+    for attempt in range(3):
+        result = subprocess.run(
+            ["gh", "secret", "set", "TWITCH_REFRESH_TOKEN", "--repo", repo],
+            input=new_token, text=True,
+        )
+        if result.returncode == 0:
+            logger.info("Rotated refresh token persisted to secret")
+            return
+        logger.warning(f"gh secret set failed (attempt {attempt + 1}/3)")
+        time.sleep(2)
+    logger.error("CRITICAL: failed to persist rotated refresh token after retries — "
+                 "the next scheduled run will fail until this secret is fixed")
+    _alert_discord(
+        "Failed to persist a rotated Twitch refresh token after 3 retries. "
+        "The next scheduled run will likely fail with an invalid refresh token — "
+        "check `gh secret set` / GH_PAT permissions."
     )
-    logger.info("Rotated refresh token persisted to secret")
+
+
+def _alert_discord(message: str):
+    token = os.environ.get("DISCORD_BOT_TOKEN")
+    channel_id = os.environ.get("DISCORD_REACTION_CHANNEL_ID")
+    if not token or not channel_id:
+        return
+    try:
+        discord_roles.post_message(channel_id, token, {"description": message})
+    except Exception as e:
+        logger.warning(f"Failed to post Discord alert: {e}")
 
 
 def _commit_files(paths: list[str], message: str):
@@ -95,6 +121,7 @@ def main() -> int:
 
     refreshed = _refresh(client_id, refresh_token)
     if not refreshed:
+        _alert_discord("Twitch refresh token is invalid — run authorize.py and update TWITCH_REFRESH_TOKEN.")
         return 1
     access_token, refresh_token = refreshed
 
@@ -124,6 +151,7 @@ def main() -> int:
                 refreshed = _refresh(client_id, refresh_token)
                 if not refreshed:
                     logger.error("Re-auth required — refresh token invalid")
+                    _alert_discord("Twitch refresh token is invalid — run authorize.py and update TWITCH_REFRESH_TOKEN.")
                     return 1
                 access_token, refresh_token = refreshed
                 live, status = twitch_api.get_live_streams(client_id, access_token, channels)
