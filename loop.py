@@ -75,7 +75,7 @@ def _alert_discord(message: str):
     if not token or not channel_id:
         return
     try:
-        discord_roles.post_message(channel_id, token, {"description": message})
+        discord_roles.post_message(channel_id, token, {"description": f"▽△PORYGON▽△ fainted!\n{message}"})
     except Exception as e:
         logger.warning(f"Failed to post Discord alert: {e}")
 
