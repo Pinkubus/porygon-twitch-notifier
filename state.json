@@ -4,8 +4,8 @@
     "stream_id": ""
   },
   "erodite": {
-    "live": false,
-    "stream_id": ""
+    "live": true,
+    "stream_id": "321395433050"
   },
   "poogbooklet": {
     "live": false,
