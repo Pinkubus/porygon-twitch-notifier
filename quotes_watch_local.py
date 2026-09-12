@@ -22,6 +22,7 @@ import sys
 import subprocess
 import threading
 import time
+import json
 import logging
 
 import activity_log
@@ -61,6 +62,35 @@ def _git(*args: str) -> int:
         return 1
 
 
+def _merge_scan_state_conflict(rel_path: str) -> bool:
+    """Auto-resolve a rebase conflict in the channel_id -> last-seen-message-id
+    watermark file by keeping the larger (further-advanced) value per key —
+    safe because discord_sync.yml runs the same scan logic on its own cadence.
+    """
+    try:
+        ours = subprocess.run(
+            ["git", "-C", _HERE, "show", f":2:{rel_path}"],
+            capture_output=True, text=True, timeout=_GIT_TIMEOUT,
+        )
+        theirs = subprocess.run(
+            ["git", "-C", _HERE, "show", f":3:{rel_path}"],
+            capture_output=True, text=True, timeout=_GIT_TIMEOUT,
+        )
+        if ours.returncode != 0 or theirs.returncode != 0:
+            return False
+        merged = json.loads(ours.stdout)
+        for key, value in json.loads(theirs.stdout).items():
+            if key not in merged or int(value) > int(merged[key]):
+                merged[key] = value
+        with open(os.path.join(_HERE, rel_path), "w") as f:
+            json.dump(merged, f, indent=2)
+            f.write("\n")
+        return True
+    except Exception as e:
+        logger.warning(f"Auto-merge of {rel_path} failed: {e}")
+        return False
+
+
 def _commit_and_push(paths: list[str], message: str):
     paths = [p for p in paths if os.path.exists(p)]
     if not paths:
@@ -76,7 +106,17 @@ def _commit_and_push(paths: list[str], message: str):
     for _ in range(3):
         if _git("push") == 0:
             return
-        _git("pull", "--rebase")
+        if _git("pull", "--rebase") == 0:
+            continue
+        if (
+            "quotes_scan_state.json" in paths
+            and _merge_scan_state_conflict("quotes_scan_state.json")
+            and _git("add", "quotes_scan_state.json") == 0
+            and _git("rebase", "--continue") == 0
+        ):
+            continue
+        _git("rebase", "--abort")
+        break
     logger.warning(f"Failed to push {paths} after retries")
 
 
