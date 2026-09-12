@@ -1,0 +1,57 @@
+name: Discord quotes/reaction-roles sync
+
+# Runs independently of the long-lived Twitch loop in notify.yml so a stuck
+# or crashed Twitch loop run can never stall quotes/reaction-role scanning
+# for hours — this is a quick single pass on its own 5-minute cron, which is
+# GitHub Actions' finest schedule granularity.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: discord-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - run: pip install -r requirements.txt
+
+      - name: Configure git identity
+        run: |
+          git config user.name "porygon-bot"
+          git config user.email "actions@users.noreply.github.com"
+
+      - name: Sync
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ vars.DISCORD_GUILD_ID }}
+          DISCORD_REACTION_CHANNEL_ID: ${{ vars.DISCORD_REACTION_CHANNEL_ID }}
+          DISCORD_REACTION_MESSAGE_ID: ${{ vars.DISCORD_REACTION_MESSAGE_ID }}
+          REACTION_ROLE_MAP: ${{ vars.REACTION_ROLE_MAP }}
+        run: python discord_sync_once.py
+
+      - name: Commit updated state
+        run: |
+          git add quotes.json quotes_scan_state.json reaction_state.json activity.log
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Update quotes/reaction-role state [skip ci]"
+          for i in 1 2 3; do
+            git push && exit 0
+            git pull --rebase
+          done
+          echo "Failed to push updated state after retries" >&2
+          exit 1
