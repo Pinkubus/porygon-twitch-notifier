@@ -99,6 +99,30 @@ def get_member_roles(guild_id: str, user_id: str, token: str) -> Optional[set[st
     return set(resp.json().get("roles", []))
 
 
+def post_message_with_file(channel_id: str, token: str, content: str, file_path: Optional[str] = None) -> Optional[str]:
+    """Post as the real bot account (no webhook needed), optionally with one attached file."""
+    payload = {"content": content}
+    if file_path:
+        with open(file_path, "rb") as f:
+            resp = requests.post(
+                f"{DISCORD_API}/channels/{channel_id}/messages",
+                headers=_headers(token),
+                data={"payload_json": json.dumps(payload)},
+                files={"files[0]": (os.path.basename(file_path), f.read())},
+                timeout=20,
+            )
+    else:
+        resp = requests.post(
+            f"{DISCORD_API}/channels/{channel_id}/messages",
+            headers=_headers(token), json=payload, timeout=10,
+        )
+    if resp.status_code not in (200, 201):
+        logger.warning(f"Failed to post message {resp.status_code}: {resp.text[:200]}")
+        return None
+    return resp.json()["id"]
+
+
+
 def post_message(channel_id: str, token: str, embed: dict) -> Optional[str]:
     resp = requests.post(
         f"{DISCORD_API}/channels/{channel_id}/messages",

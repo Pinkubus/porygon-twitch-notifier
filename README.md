@@ -81,4 +81,18 @@ python authorize.py
 Follow the printed URL, enter the code, then copy the printed
 `refresh_token` value into the `TWITCH_REFRESH_TOKEN` secret.
 
+## Sending a message as Porygon manually
+
+`porygon_send.py` is a small local Tkinter GUI (type a message, optionally
+attach one image, hit Send) that posts through the real bot account via the
+Discord Bot API — no separate webhook to keep in sync, since it reuses the
+same `DISCORD_BOT_TOKEN`/`DISCORD_REACTION_CHANNEL_ID` the production loop
+already uses.
+
+```
+copy .env.example .env      # then fill in the real token/channel ID
+python porygon_send.py
+```
+
+
 
