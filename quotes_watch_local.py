@@ -34,6 +34,11 @@ logger = logging.getLogger("porygon.quotes_watch_local")
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _POLL_SECONDS = 10
 _ICON_PATH = r"C:\Users\Williwaugh\Desktop\emotes\porygoncuter.png"
+_GIT_TIMEOUT = 30
+
+# Never let a stalled credential prompt (e.g. no saved credentials in this
+# session, such as under a SYSTEM/no-login scheduled task) hang the loop.
+os.environ.setdefault("GIT_TERMINAL_PROMPT", "0")
 
 
 def _load_env_file(path: str):
@@ -48,18 +53,30 @@ def _load_env_file(path: str):
             os.environ.setdefault(key.strip(), value.strip())
 
 
+def _git(*args: str) -> int:
+    try:
+        return subprocess.run(["git", "-C", _HERE, *args], timeout=_GIT_TIMEOUT).returncode
+    except subprocess.TimeoutExpired:
+        logger.warning(f"git {' '.join(args)} timed out")
+        return 1
+
+
 def _commit_and_push(paths: list[str], message: str):
     paths = [p for p in paths if os.path.exists(p)]
     if not paths:
         return
-    subprocess.run(["git", "-C", _HERE, "add", *paths], check=True)
-    if subprocess.run(["git", "-C", _HERE, "diff", "--cached", "--quiet"]).returncode == 0:
+    if _git("add", *paths) != 0:
+        return
+    if subprocess.run(
+        ["git", "-C", _HERE, "diff", "--cached", "--quiet"], timeout=_GIT_TIMEOUT,
+    ).returncode == 0:
         return  # nothing staged
-    subprocess.run(["git", "-C", _HERE, "commit", "-m", message], check=True)
+    if _git("commit", "-m", message) != 0:
+        return
     for _ in range(3):
-        if subprocess.run(["git", "-C", _HERE, "push"]).returncode == 0:
+        if _git("push") == 0:
             return
-        subprocess.run(["git", "-C", _HERE, "pull", "--rebase"])
+        _git("pull", "--rebase")
     logger.warning(f"Failed to push {paths} after retries")
 
 
