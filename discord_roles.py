@@ -47,6 +47,14 @@ def get_guild_roles(guild_id: str, token: str) -> list[dict]:
     return resp.json()
 
 
+def get_guild_emojis(guild_id: str, token: str) -> list[dict]:
+    resp = requests.get(f"{DISCORD_API}/guilds/{guild_id}/emojis", headers=_headers(token), timeout=10)
+    if resp.status_code != 200:
+        logger.warning(f"Failed to fetch guild emojis {resp.status_code}: {resp.text[:200]}")
+        return []
+    return resp.json()
+
+
 def get_guild_text_channels(guild_id: str, token: str) -> list[dict]:
     """Text channels (type 0) in the guild, for message-scanning features."""
     resp = requests.get(f"{DISCORD_API}/guilds/{guild_id}/channels", headers=_headers(token), timeout=10)

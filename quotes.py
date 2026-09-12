@@ -5,8 +5,8 @@ Two behaviors, scanned across every text channel in the guild:
   1. A message starting with "!addquote <text>" saves <text> as a quote and
      reacts with 📝 to confirm.
   2. Any other new message whose content contains a saved quote (case-
-     insensitive substring) gets a ™️ reaction — a lightweight "catbot"-style
-     callback.
+     insensitive substring) gets a custom `porygonwow` reaction — a
+     lightweight "catbot"-style callback.
 
 Only ever looks at messages newer than the last-seen message per channel
 (quotes_scan_state.json), so it never re-scans/re-reacts to old history and
@@ -19,6 +19,7 @@ import os
 import json
 import logging
 import time
+from typing import Optional
 
 import activity_log
 import discord_roles
@@ -30,7 +31,23 @@ SCAN_STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "quot
 
 ADD_PREFIX = "!addquote "
 SAVED_REACTION = "📝"
-CALLBACK_REACTION = "™"  # Discord rejects the fully-qualified "™️" (with VS16) as "Unknown Emoji"
+CALLBACK_EMOJI_NAME = "porygonwow"  # custom server emoji
+_callback_reaction_cache: Optional[str] = None
+
+
+def get_callback_reaction(guild_id: str, token: str) -> str:
+    """Resolve the custom `porygonwow` emoji to its `name:id` reaction form,
+    cached per process. Falls back to a bare ™ if it's ever missing."""
+    global _callback_reaction_cache
+    if _callback_reaction_cache is None:
+        emojis = discord_roles.get_guild_emojis(guild_id, token)
+        match = next((e for e in emojis if e.get("name") == CALLBACK_EMOJI_NAME), None)
+        if match:
+            _callback_reaction_cache = f"{CALLBACK_EMOJI_NAME}:{match['id']}"
+        else:
+            logger.warning(f"Custom emoji '{CALLBACK_EMOJI_NAME}' not found in guild — falling back to ™")
+            _callback_reaction_cache = "™"
+    return _callback_reaction_cache
 
 
 def _load_json(path: str, default):
@@ -77,6 +94,7 @@ def scan_and_process(bot_user_id: str) -> bool:
     quotes = load_quotes()
     quote_texts_lower = [q["text"].lower() for q in quotes]
     scan_state = load_scan_state()
+    callback_reaction = get_callback_reaction(guild_id, token)
 
     changed_quotes = False
     changed_scan = False
@@ -136,7 +154,7 @@ def scan_and_process(bot_user_id: str) -> bool:
 
             lowered = content.lower()
             if any(qt and qt in lowered for qt in quote_texts_lower):
-                if discord_roles.add_own_reaction(channel_id, msg_id, CALLBACK_REACTION, token):
+                if discord_roles.add_own_reaction(channel_id, msg_id, callback_reaction, token):
                     logger.info(f"Quote callback reaction added ({channel_id}/{msg_id})")
                     activity_log.log("\u2705 Quote callback reaction added")
                 else:
