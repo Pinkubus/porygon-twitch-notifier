@@ -112,18 +112,41 @@ def _refresh(client_id: str, refresh_token: str) -> tuple[str, str] | None:
     return tokens["access_token"], new_refresh
 
 
+_TWITCH_RETRY_SECONDS = 5 * 60  # backoff between re-auth attempts once the refresh token is known-bad
+
+
 def main() -> int:
     client_id = os.environ.get("TWITCH_CLIENT_ID", "")
     refresh_token = os.environ.get("TWITCH_REFRESH_TOKEN", "")
-    if not client_id or not refresh_token:
-        logger.error("TWITCH_CLIENT_ID / TWITCH_REFRESH_TOKEN not set")
-        return 1
+    twitch_configured = bool(client_id and refresh_token)
+    if not twitch_configured:
+        logger.warning("TWITCH_CLIENT_ID / TWITCH_REFRESH_TOKEN not set — Twitch live-checks disabled this run")
 
-    refreshed = _refresh(client_id, refresh_token)
-    if not refreshed:
-        _alert_discord("Twitch refresh token is invalid — run authorize.py and update TWITCH_REFRESH_TOKEN.")
-        return 1
-    access_token, refresh_token = refreshed
+    # Twitch auth state is tracked separately from the loop so a bad/expired
+    # refresh token only disables live-notifications, instead of exiting the
+    # whole job and taking quotes/reaction-roles down with it.
+    access_token = ""
+    twitch_enabled = False
+    twitch_retry_at = 0.0
+
+    def try_refresh_twitch(alert_on_failure: bool) -> bool:
+        nonlocal access_token, refresh_token, twitch_enabled, twitch_retry_at
+        refreshed = _refresh(client_id, refresh_token)
+        if not refreshed:
+            twitch_enabled = False
+            twitch_retry_at = time.time() + _TWITCH_RETRY_SECONDS
+            if alert_on_failure:
+                _alert_discord(
+                    "Twitch refresh token is invalid — run authorize.py and update TWITCH_REFRESH_TOKEN. "
+                    "Live-notifications are paused; quotes/reaction-roles keep running."
+                )
+            return False
+        access_token, refresh_token = refreshed
+        twitch_enabled = True
+        return True
+
+    if twitch_configured:
+        try_refresh_twitch(alert_on_failure=True)
 
     max_run_seconds = int(os.environ.get("LOOP_MAX_SECONDS") or _DEFAULT_MAX_RUN_SECONDS)
     channels = twitch_api.get_channels()
@@ -141,37 +164,41 @@ def main() -> int:
         logger.info(f"Reaction roles: {'enabled' if reaction_roles_enabled else 'disabled (setup incomplete)'}")
         logger.info(f"Quotes: {'enabled' if quotes_enabled else 'disabled (setup incomplete)'}")
 
+    if not twitch_enabled and not (reaction_roles_enabled or quotes_enabled):
+        logger.error("Nothing to do: Twitch is disabled and no Discord bot features are configured")
+        return 1
+
     start = time.time()
     while time.time() - start < max_run_seconds:
         loop_start = time.time()
 
         try:
-            live, status = twitch_api.get_live_streams(client_id, access_token, channels)
-            if status == 401:
-                refreshed = _refresh(client_id, refresh_token)
-                if not refreshed:
-                    logger.error("Re-auth required — refresh token invalid")
-                    _alert_discord("Twitch refresh token is invalid — run authorize.py and update TWITCH_REFRESH_TOKEN.")
-                    return 1
-                access_token, refresh_token = refreshed
+            if twitch_configured and not twitch_enabled and time.time() >= twitch_retry_at:
+                try_refresh_twitch(alert_on_failure=False)
+
+            if twitch_enabled:
                 live, status = twitch_api.get_live_streams(client_id, access_token, channels)
+                if status == 401:
+                    if try_refresh_twitch(alert_on_failure=True):
+                        live, status = twitch_api.get_live_streams(client_id, access_token, channels)
 
-            newly_live = [c for c in channels if c in live and not state.get(c, {}).get("live")]
-            state_changed = any(
-                (c in live) != state.get(c, {}).get("live", False) for c in channels
-            )
-            avatars = twitch_api.get_user_avatars(client_id, access_token, newly_live)
+                if twitch_enabled:
+                    newly_live = [c for c in channels if c in live and not state.get(c, {}).get("live")]
+                    state_changed = any(
+                        (c in live) != state.get(c, {}).get("live", False) for c in channels
+                    )
+                    avatars = twitch_api.get_user_avatars(client_id, access_token, newly_live)
 
-            for c in channels:
-                is_live = c in live
-                was_live = state.get(c, {}).get("live", False)
-                if is_live and not was_live:
-                    logger.info(f"{c} just went live — notifying")
-                    twitch_api.post_live_notification(c, live[c], avatars.get(c, ""))
-                state[c] = {"live": is_live, "stream_id": live.get(c, {}).get("id", "")}
+                    for c in channels:
+                        is_live = c in live
+                        was_live = state.get(c, {}).get("live", False)
+                        if is_live and not was_live:
+                            logger.info(f"{c} just went live — notifying")
+                            twitch_api.post_live_notification(c, live[c], avatars.get(c, ""))
+                        state[c] = {"live": is_live, "stream_id": live.get(c, {}).get("id", "")}
 
-            if state_changed:
-                _save_state_and_commit(state)
+                    if state_changed:
+                        _save_state_and_commit(state)
 
             if reaction_roles_enabled and reaction_roles.sync(bot_user_id):
                 _commit_files(["reaction_state.json"], "Update reaction-role state [skip ci]")
