@@ -51,6 +51,8 @@ _NUMBER_RE = re.compile(
 
 _COOLDOWN_SECONDS = int(os.environ.get("PORYGON_Z_COOLDOWN_SECONDS", 15 * 60))
 
+_z_user_id_cache: Optional[str] = None
+
 _SYSTEM_PROMPT = (
     "You are a joke-timing judge for a Discord server's running gag. The bit: "
     "whenever someone gives a vague, joking, or uncertain numeric answer, "
@@ -97,6 +99,20 @@ def _looks_like_a_number_guess(content: str) -> bool:
     return bool(_NUMBER_RE.search(content))
 
 
+def _z_token() -> str:
+    """Porygon Z posts under its own bot token/identity (separate Discord
+    application, so it can have its own name/icon), falling back to the main
+    bot token if a dedicated one hasn't been set up yet."""
+    return os.environ.get("DISCORD_Z_BOT_TOKEN") or os.environ["DISCORD_BOT_TOKEN"]
+
+
+def _z_user_id(z_token: str, fallback: str) -> str:
+    global _z_user_id_cache
+    if _z_user_id_cache is None:
+        _z_user_id_cache = discord_roles.get_bot_user_id(z_token) or fallback
+    return _z_user_id_cache
+
+
 def _ask_claude(content: str) -> bool:
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -132,6 +148,8 @@ def scan_and_process(bot_user_id: str) -> bool:
     """Returns True if porygon_z_state.json changed."""
     token = os.environ["DISCORD_BOT_TOKEN"]
     guild_id = os.environ["DISCORD_GUILD_ID"]
+    z_token = _z_token()
+    z_user_id = _z_user_id(z_token, bot_user_id)
 
     state = _load_state()
     changed = False
@@ -162,7 +180,7 @@ def scan_and_process(bot_user_id: str) -> bool:
                 max_id = msg_id
 
             author_id = msg.get("author", {}).get("id")
-            if author_id == bot_user_id:
+            if author_id in (bot_user_id, z_user_id):
                 continue
 
             content = (msg.get("content") or "").strip()
@@ -173,7 +191,7 @@ def scan_and_process(bot_user_id: str) -> bool:
                 continue
 
             if _ask_claude(content):
-                if discord_roles.post_reply(channel_id, msg_id, token, GLITCH_REPLY):
+                if discord_roles.post_reply(channel_id, msg_id, z_token, GLITCH_REPLY):
                     logger.info(f"Porygon Z callback fired ({channel_id}/{msg_id})")
                     activity_log.log("\u2728 Porygon Z callback fired")
                     last_fired = now
