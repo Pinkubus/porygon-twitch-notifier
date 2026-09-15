@@ -38,6 +38,30 @@ these top out at 7 — that is correct. Do not inflate above it.
 | **1** | i will be insufferable about this until thursday | `filed under achievements.` | A label, not a line. Brevity with no idea in it. |
 | **1** | outbid on the same character by four different people | `four separate people have decided you specifically should not have her` | Pure sarcastic restatement. The worst failure mode. |
 
+## The frame is necessary but not sufficient
+
+Finding a new frame gets you to about a 4. What separates a 4 from a 7 is
+where the line *lands*: a vivid image ("the food looks smug"), an unexpected
+personification, or a hard specific number ("330 times... break even by
+dinner"). A frame that resolves into something abstract or merely procedural
+reads as clever-adjacent but doesn't actually land.
+
+| Score | Message | Reply | Why |
+|-------|---------|-------|-----|
+| **5** | phone autocorrected my boss's name to 'dad', i did not catch it | `ask for an allowance at the next performance review` | Good frame, nearly lands, but resolves procedurally instead of on an image. |
+| **4** | cat claimed the cardboard box, i bought her a real bed in march | `nine months vacant, stage it with a cheaper cat to create demand` | Real-estate framing is genuinely good; the punch is too diffuse to land. |
+
+## Vocabulary
+
+Plain, common American English only. If a reader has to look a word up, the
+joke is dead on arrival no matter how good the idea was.
+
+`put the rest on a rota so none of them get comfortable` failed purely on
+"rota" — the owner had to google it. **Cap any reply containing a word the
+average person wouldn't know at 2**, regardless of its other merits. This
+includes British idiom, technical jargon, and anything that reads as showing
+off.
+
 ## Scoring bands
 
 | Score | Meaning |
