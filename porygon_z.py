@@ -40,7 +40,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 STATE_FILE = os.path.join(_HERE, "porygon_z_state.json")
 
 ANTHROPIC_API = "https://api.anthropic.com/v1/messages"
-ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 
 # The bit always lands on "six" \u2014 written in glitchy/zalgo text, per the
 # server's inside joke.
@@ -156,6 +156,9 @@ def _try_auto_reply(
     msg: dict, channel_id: str, channel_name: str, token: str, z_token: str, reply_count: int,
 ) -> bool:
     """Unprompted: only posts if Z rates its own line highly enough."""
+    if not z_brain.worth_considering(msg.get("content") or ""):
+        return False
+
     context, user_ids = z_brain.build_context(channel_id, msg, token)
     reply, score = z_brain.compose_and_score(context, msg, channel_name, reply_count, user_ids)
     if not reply or score < z_brain.AUTO_SCORE_THRESHOLD:
@@ -175,11 +178,7 @@ def _ask_claude(content: str) -> bool:
     try:
         resp = requests.post(
             ANTHROPIC_API,
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
+            headers=z_brain._anthropic_headers(api_key),
             json={
                 "model": ANTHROPIC_MODEL,
                 "max_tokens": 4,
