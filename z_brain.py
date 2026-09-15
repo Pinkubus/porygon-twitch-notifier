@@ -73,9 +73,11 @@ def is_delicate(channel_name: str) -> bool:
 AUTO_SCORE_THRESHOLD = float(os.environ.get("Z_AUTO_SCORE_THRESHOLD", 5.5))
 
 # An explicit !z summons is held to a higher bar than an unprompted reply, and
-# retries until it gets there rather than settling.
+# retries until it gets there. Strict mode makes it stay silent if it never
+# does — off by default, since the scorer tops out near 5.5 on real messages.
 COMMAND_MIN_SCORE = float(os.environ.get("Z_COMMAND_MIN_SCORE", 8.0))
 _COMMAND_MAX_ATTEMPTS = int(os.environ.get("Z_COMMAND_MAX_ATTEMPTS", 6))
+_COMMAND_STRICT = os.environ.get("Z_COMMAND_STRICT", "").lower() in ("1", "true", "yes")
 
 # How many replies it takes for the clingy bit to reach full frequency.
 _CLINGY_RAMP = int(os.environ.get("Z_CLINGY_RAMP", 150))
@@ -335,8 +337,10 @@ def _clean(reply: str) -> Optional[str]:
 def compose_reply(
     context: str, target: dict, channel_name: str, reply_count: int, user_ids: set[str],
 ) -> Optional[str]:
-    """Direct !z invocation. Retries until a line clears COMMAND_MIN_SCORE so an
-    explicit summons never gets a mediocre answer; returns None if it can't."""
+    """Direct !z invocation. Retries for a line clearing COMMAND_MIN_SCORE and
+    returns the best it found. An explicit summons answers with its best shot
+    unless Z_COMMAND_STRICT is set, because the scorer rarely awards high
+    absolute scores and a strict bar means !z would simply never speak."""
     best, best_score = None, 0.0
     for attempt in range(1, _COMMAND_MAX_ATTEMPTS + 1):
         reply, score = compose_and_score(
@@ -347,8 +351,11 @@ def compose_reply(
         if best_score >= COMMAND_MIN_SCORE:
             logger.info(f"!z cleared {COMMAND_MIN_SCORE} at {best_score} on attempt {attempt}")
             return best
-    logger.info(f"!z gave up after {_COMMAND_MAX_ATTEMPTS} attempts, best was {best_score}: {best}")
-    return None
+    if _COMMAND_STRICT:
+        logger.info(f"!z found nothing above {COMMAND_MIN_SCORE}; best was {best_score}: {best}")
+        return None
+    logger.info(f"!z settled for best of {_COMMAND_MAX_ATTEMPTS} at {best_score}: {best}")
+    return best
 
 
 _SCORE_RE = re.compile(r'"score"\s*:\s*([0-9]+(?:\.[0-9]+)?)')
