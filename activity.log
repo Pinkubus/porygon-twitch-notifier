@@ -4802,3 +4802,14 @@
 [2026-09-15 14:55:26Z] ❌ Failed to revoke role 🃏 from 333464277794947072 (will retry)
 [2026-09-15 14:55:26Z] ❌ Failed to revoke role 🃏 from 194245240041897984 (will retry)
 [2026-09-15 14:55:26Z] ❌ Failed to revoke role 🃏 from 195284975183069184 (will retry)
+[2026-09-15 14:55:47Z] ❌ Failed to revoke role 🎮 from 193880505521930240 (will retry)
+[2026-09-15 14:55:47Z] ❌ Failed to revoke role 🎮 from 243191787294949386 (will retry)
+[2026-09-15 14:55:47Z] ❌ Failed to revoke role 🎮 from 333464277794947072 (will retry)
+[2026-09-15 14:55:48Z] ❌ Failed to revoke role 🎮 from 194245240041897984 (will retry)
+[2026-09-15 14:55:48Z] ❌ Failed to revoke role 🎮 from 234479235551592448 (will retry)
+[2026-09-15 14:55:48Z] ❌ Failed to revoke role 🎮 from 195284975183069184 (will retry)
+[2026-09-15 14:55:49Z] ✅ Revoked role 🎨 from 193880505521930240
+[2026-09-15 14:55:50Z] ✅ Revoked role 🎨 from 243191787294949386
+[2026-09-15 14:55:51Z] ✅ Revoked role 🎨 from 333464277794947072
+[2026-09-15 14:55:52Z] ✅ Revoked role 🎨 from 234479235551592448
+[2026-09-15 14:55:56Z] ❌ Failed to revoke role 🎨 from 195284975183069184 (will retry)
