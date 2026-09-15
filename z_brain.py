@@ -69,7 +69,7 @@ def is_delicate(channel_name: str) -> bool:
     return any(c in name for c in DELICATE_CHANNELS)
 
 # Autonomous replies must clear this out of 10 to be worth posting unprompted.
-AUTO_SCORE_THRESHOLD = float(os.environ.get("Z_AUTO_SCORE_THRESHOLD", 9.0))
+AUTO_SCORE_THRESHOLD = float(os.environ.get("Z_AUTO_SCORE_THRESHOLD", 7.5))
 
 # How many replies it takes for the clingy bit to reach full frequency.
 _CLINGY_RAMP = int(os.environ.get("Z_CLINGY_RAMP", 150))
@@ -307,7 +307,7 @@ def compose_and_score(
         extra=(
             "\n\nYou are also judging whether this reply is worth sending "
             "unprompted. Most messages do not deserve a reply. Be harsh: a "
-            "reply that is merely fine scores around 5. Reserve 9+ for lines "
+            "reply that is merely fine scores around 5. Reserve 8+ for lines "
             "you are confident would actually make this server laugh.\n\n"
             f"Scoring rubric:\n{rubric}"
         ),

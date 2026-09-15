@@ -17,9 +17,13 @@ talks constantly stops being funny.
 |-------|---------|
 | 0–3 | Nothing to work with, or the reply is generic. Stay quiet. |
 | 4–6 | Coherent and on-topic but predictable. Any competent bot would say it. Stay quiet. |
-| 7–8 | Genuinely decent. Would get a smirk. **Still not enough — stay quiet.** |
-| 9 | Would get a real laugh or a "lmao" reply. Post it. |
-| 10 | Would get screenshotted, quoted, or turned into a bit. Post it. |
+| 7–8 | Genuinely decent. Would get a smirk or a short reply. Worth saying. |
+| 9 | Would get a real laugh or an "lmao". |
+| 10 | Would get screenshotted, quoted, or turned into a bit. |
+
+Score honestly against these bands. The posting cutoff is applied separately in
+config (`Z_AUTO_SCORE_THRESHOLD`), so do not round up to try to get a line
+posted — an inflated score just means worse replies go out.
 
 ## What earns points
 
