@@ -31,6 +31,8 @@ import requests
 
 import activity_log
 import discord_roles
+import z_brain
+import z_profiles
 
 logger = logging.getLogger("porygon.porygon_z")
 
@@ -50,6 +52,12 @@ _NUMBER_RE = re.compile(
 )
 
 _COOLDOWN_SECONDS = int(os.environ.get("PORYGON_Z_COOLDOWN_SECONDS", 15 * 60))
+
+# Unprompted replies get their own, much longer cooldown — the six-bit is a
+# fixed punchline, but these are open-ended and grate faster if overused.
+_AUTO_COOLDOWN_SECONDS = int(os.environ.get("Z_AUTO_COOLDOWN_SECONDS", 60 * 60))
+
+Z_COMMAND = "!z"
 
 _z_user_id_cache: Optional[str] = None
 
@@ -113,6 +121,53 @@ def _z_user_id(z_token: str, fallback: str) -> str:
     return _z_user_id_cache
 
 
+def _handle_z_command(
+    msg: dict, channel_id: str, channel_name: str, token: str, z_token: str, reply_count: int,
+) -> bool:
+    """`!z` in reply to a message: delete the command, answer its parent."""
+    ref = msg.get("message_reference") or {}
+    parent_id = ref.get("message_id")
+    if not parent_id:
+        logger.info("!z used without replying to a message \u2014 ignoring")
+        return False
+
+    target = discord_roles.get_message(channel_id, parent_id, token)
+    if not target:
+        return False
+
+    # Delete as Z if it has Manage Messages, otherwise let the main bot do it.
+    if not discord_roles.delete_message(channel_id, msg["id"], z_token):
+        discord_roles.delete_message(channel_id, msg["id"], token)
+
+    context, user_ids = z_brain.build_context(channel_id, target, token)
+    reply = z_brain.compose_reply(context, target, channel_name, reply_count, user_ids)
+    if not reply:
+        logger.info(f"!z produced no reply ({channel_id}/{parent_id})")
+        return False
+
+    if discord_roles.post_reply(channel_id, parent_id, z_token, reply):
+        logger.info(f"!z reply posted ({channel_id}/{parent_id})")
+        activity_log.log("\U0001f47e Porygon Z replied (!z)")
+        return True
+    return False
+
+
+def _try_auto_reply(
+    msg: dict, channel_id: str, channel_name: str, token: str, z_token: str, reply_count: int,
+) -> bool:
+    """Unprompted: only posts if Z rates its own line highly enough."""
+    context, user_ids = z_brain.build_context(channel_id, msg, token)
+    reply, score = z_brain.compose_and_score(context, msg, channel_name, reply_count, user_ids)
+    if not reply or score < z_brain.AUTO_SCORE_THRESHOLD:
+        return False
+
+    if discord_roles.post_reply(channel_id, msg["id"], z_token, reply):
+        logger.info(f"Auto-reply posted, score {score} ({channel_id}/{msg['id']})")
+        activity_log.log(f"\U0001f47e Porygon Z replied unprompted ({score}/10)")
+        return True
+    return False
+
+
 def _ask_claude(content: str) -> bool:
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -154,17 +209,26 @@ def scan_and_process(bot_user_id: str) -> bool:
     state = _load_state()
     changed = False
     now = time.time()
+    reply_count = state.get("_reply_count", 0)
+    brain_ready = z_brain.is_configured()
+
+    if brain_ready:
+        try:
+            z_profiles.scan({bot_user_id, z_user_id})
+        except Exception as e:
+            logger.warning(f"Profile scan failed: {e}")
 
     channels = discord_roles.get_guild_text_channels(guild_id, token)
     for channel in channels:
         channel_id = channel["id"]
+        channel_name = channel.get("name", "")
         channel_state = state.get(channel_id, {})
         after = channel_state.get("after")
 
         if after is None:
             latest = discord_roles.get_channel_messages(channel_id, token, limit=1)
             if latest:
-                state[channel_id] = {"after": latest[0]["id"], "last_fired": 0}
+                state[channel_id] = {"after": latest[0]["id"], "last_fired": 0, "last_auto": 0}
                 changed = True
             continue
 
@@ -174,6 +238,7 @@ def scan_and_process(bot_user_id: str) -> bool:
 
         max_id = after
         last_fired = channel_state.get("last_fired", 0)
+        last_auto = channel_state.get("last_auto", 0)
         for msg in sorted(messages, key=lambda m: int(m["id"])):
             msg_id = msg["id"]
             if int(msg_id) > int(max_id):
@@ -184,24 +249,35 @@ def scan_and_process(bot_user_id: str) -> bool:
                 continue
 
             content = (msg.get("content") or "").strip()
-            if not content or not _looks_like_a_number_guess(content):
+            if not content:
                 continue
 
-            if now - last_fired < _COOLDOWN_SECONDS:
+            if brain_ready and content.lower().split() and content.lower().split()[0] == Z_COMMAND:
+                if _handle_z_command(msg, channel_id, channel_name, token, z_token, reply_count):
+                    reply_count += 1
+                    last_auto = now
                 continue
 
-            if _ask_claude(content):
-                if discord_roles.post_reply(channel_id, msg_id, z_token, GLITCH_REPLY):
-                    logger.info(f"Porygon Z callback fired ({channel_id}/{msg_id})")
-                    activity_log.log("\u2728 Porygon Z callback fired")
-                    last_fired = now
-                else:
-                    logger.warning(f"Porygon Z reply failed ({channel_id}/{msg_id})")
-                    activity_log.log("\u274c Porygon Z reply failed")
+            if _looks_like_a_number_guess(content) and now - last_fired >= _COOLDOWN_SECONDS:
+                if _ask_claude(content):
+                    if discord_roles.post_reply(channel_id, msg_id, z_token, GLITCH_REPLY):
+                        logger.info(f"Porygon Z callback fired ({channel_id}/{msg_id})")
+                        activity_log.log("\u2728 Porygon Z callback fired")
+                        last_fired = now
+                    else:
+                        logger.warning(f"Porygon Z reply failed ({channel_id}/{msg_id})")
+                        activity_log.log("\u274c Porygon Z reply failed")
+                    continue
 
-        state[channel_id] = {"after": max_id, "last_fired": last_fired}
+            if brain_ready and now - last_auto >= _AUTO_COOLDOWN_SECONDS:
+                if _try_auto_reply(msg, channel_id, channel_name, token, z_token, reply_count):
+                    reply_count += 1
+                    last_auto = now
+
+        state[channel_id] = {"after": max_id, "last_fired": last_fired, "last_auto": last_auto}
         changed = True
 
     if changed:
+        state["_reply_count"] = reply_count
         _save_state(state)
     return changed
