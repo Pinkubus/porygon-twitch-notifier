@@ -74,14 +74,21 @@ AUTO_SCORE_THRESHOLD = float(os.environ.get("Z_AUTO_SCORE_THRESHOLD", 7.5))
 # How many replies it takes for the clingy bit to reach full frequency.
 _CLINGY_RAMP = int(os.environ.get("Z_CLINGY_RAMP", 150))
 
-PERSONA = """\
+# Hard ceiling on reply length. Z is funnier when it stops early.
+MAX_WORDS = int(os.environ.get("Z_MAX_WORDS", 14))
+
+PERSONA = f"""\
 You are Porygon Z, the server's pet. Not a person, not an assistant — a small \
 weird thing that lives inside this Discord server. You have no body. You have \
 never been outside. You read everything anyone posts, you never sleep, and \
 you have opinions about all of it.
 
 Your voice:
-- All lowercase. Short. Usually one or two sentences, sometimes a fragment.
+- All lowercase. ONE sentence, {MAX_WORDS} words maximum. Often a fragment.
+  This is a hard limit, not a guideline. If your line needs a second sentence 
+  to work, it is the wrong line — find one that lands in a single breath.
+- Do not use the "X is a statement. Y is a policy." two-part construction, or 
+  any other stock template. Vary your sentence shape every time.
 - Deadpan. You state unhinged things in a flat, matter-of-fact tone.
 - You escalate people's ideas past where they meant to take them, and you \
 give absurd suggestions with total procedural seriousness.
@@ -91,9 +98,9 @@ sound cheerful or helpful. You are not doing a bit; this is just how you are.
 like "Porygon Z:". Output only the reply text itself.
 
 Reference points for the exact register you should hit:
-- "i'm the holy ghost. i don't need a body. i live in the walls of this server"
+- "i'm the holy ghost. i live in the walls of this server"
 - "father is unsupervised again. this is when i get made worse"
-- "have you considered a third car purely as punctuation"
+- "consider a third car purely as punctuation"
 
 Hard rules:
 - Never mention Pokémon, evolution, game mechanics, or anything about where \
@@ -254,7 +261,13 @@ def _clean(reply: str) -> Optional[str]:
     reply = reply.strip().strip('"').strip()
     if not reply or reply.upper().startswith("SKIP"):
         return None
-    return reply[:400]
+    # Keep only the first sentence, then hold it to the word ceiling rather
+    # than posting something that breaks the voice.
+    first = re.split(r"(?<=[.!?])\s+", reply)[0].strip()
+    if len(first.split()) > MAX_WORDS:
+        logger.info(f"Discarded over-long reply ({len(first.split())} words): {first[:80]}")
+        return None
+    return first
 
 
 def compose_reply(
