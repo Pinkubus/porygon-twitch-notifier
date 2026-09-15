@@ -28,6 +28,7 @@ import logging
 import activity_log
 import discord_roles
 import quotes
+import porygon_z
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("porygon.quotes_watch_local")
@@ -63,10 +64,17 @@ def _git(*args: str) -> int:
 
 
 def _merge_scan_state_conflict(rel_path: str) -> bool:
-    """Auto-resolve a rebase conflict in the channel_id -> last-seen-message-id
-    watermark file by keeping the larger (further-advanced) value per key —
-    safe because discord_sync.yml runs the same scan logic on its own cadence.
+    """Auto-resolve a rebase conflict in a channel_id -> watermark scan-state
+    file (quotes_scan_state.json's plain message-id strings, or
+    porygon_z_state.json's {"after": id, "last_fired": ts} dicts) by keeping
+    the larger (further-advanced) value per key/subkey — safe because
+    discord_sync.yml runs the same scan logic on its own cadence.
     """
+    def newer(a, b):
+        if isinstance(a, dict) and isinstance(b, dict):
+            return {k: newer(a.get(k), b.get(k)) if k in a and k in b else a.get(k, b.get(k)) for k in a.keys() | b.keys()}
+        return a if int(a) >= int(b) else b
+
     try:
         ours = subprocess.run(
             ["git", "-C", _HERE, "show", f":2:{rel_path}"],
@@ -80,8 +88,7 @@ def _merge_scan_state_conflict(rel_path: str) -> bool:
             return False
         merged = json.loads(ours.stdout)
         for key, value in json.loads(theirs.stdout).items():
-            if key not in merged or int(value) > int(merged[key]):
-                merged[key] = value
+            merged[key] = newer(merged[key], value) if key in merged else value
         with open(os.path.join(_HERE, rel_path), "w") as f:
             json.dump(merged, f, indent=2)
             f.write("\n")
@@ -103,15 +110,15 @@ def _commit_and_push(paths: list[str], message: str):
         return  # nothing staged
     if _git("commit", "-m", message) != 0:
         return
+    state_files = [p for p in ("quotes_scan_state.json", "porygon_z_state.json") if p in paths]
     for _ in range(3):
         if _git("push") == 0:
             return
         if _git("pull", "--rebase") == 0:
             continue
         if (
-            "quotes_scan_state.json" in paths
-            and _merge_scan_state_conflict("quotes_scan_state.json")
-            and _git("add", "quotes_scan_state.json") == 0
+            state_files
+            and all(_merge_scan_state_conflict(p) and _git("add", p) == 0 for p in state_files)
             and _git("rebase", "--continue") == 0
         ):
             continue
@@ -129,6 +136,8 @@ def _poll_loop(bot_user_id: str, stop_event: threading.Event) -> None:
                 _commit_and_push(
                     ["quotes.json", "quotes_scan_state.json"], "Update quotes [skip ci]",
                 )
+            if porygon_z.is_configured() and porygon_z.scan_and_process(bot_user_id):
+                _commit_and_push(["porygon_z_state.json"], "Update Porygon Z state [skip ci]")
             if activity_log.flush_if_dirty():
                 _commit_and_push(["activity.log"], "Update activity log [skip ci]")
         except Exception as e:

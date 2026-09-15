@@ -123,6 +123,23 @@ def post_message_with_file(channel_id: str, token: str, content: str, file_path:
 
 
 
+def post_reply(channel_id: str, message_id: str, token: str, content: str) -> Optional[str]:
+    """Post a plain-text message as a reply to `message_id` (no @-ping)."""
+    payload = {
+        "content": content,
+        "message_reference": {"message_id": message_id, "channel_id": channel_id, "fail_if_not_exists": False},
+        "allowed_mentions": {"parse": [], "replied_user": False},
+    }
+    resp = requests.post(
+        f"{DISCORD_API}/channels/{channel_id}/messages",
+        headers=_headers(token), json=payload, timeout=10,
+    )
+    if resp.status_code not in (200, 201):
+        logger.warning(f"Failed to post reply {resp.status_code}: {resp.text[:200]}")
+        return None
+    return resp.json()["id"]
+
+
 def post_message(channel_id: str, token: str, embed: dict) -> Optional[str]:
     resp = requests.post(
         f"{DISCORD_API}/channels/{channel_id}/messages",
