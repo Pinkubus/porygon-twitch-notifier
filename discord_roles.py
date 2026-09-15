@@ -91,6 +91,28 @@ def get_bot_user_id(token: str) -> Optional[str]:
     return resp.json()["id"]
 
 
+def get_message(channel_id: str, message_id: str, token: str) -> Optional[dict]:
+    resp = requests.get(
+        f"{DISCORD_API}/channels/{channel_id}/messages/{message_id}",
+        headers=_headers(token), timeout=10,
+    )
+    if resp.status_code != 200:
+        logger.warning(f"Failed to fetch message {message_id} {resp.status_code}: {resp.text[:200]}")
+        return None
+    return resp.json()
+
+
+def delete_message(channel_id: str, message_id: str, token: str) -> bool:
+    resp = requests.delete(
+        f"{DISCORD_API}/channels/{channel_id}/messages/{message_id}",
+        headers=_headers(token), timeout=10,
+    )
+    if resp.status_code != 204:
+        logger.warning(f"Failed to delete message {message_id} {resp.status_code}: {resp.text[:200]}")
+        return False
+    return True
+
+
 def get_member_roles(guild_id: str, user_id: str, token: str) -> Optional[set[str]]:
     resp = requests.get(f"{DISCORD_API}/guilds/{guild_id}/members/{user_id}", headers=_headers(token), timeout=10)
     if resp.status_code != 200:

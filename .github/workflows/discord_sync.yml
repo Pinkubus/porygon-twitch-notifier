@@ -42,6 +42,11 @@ jobs:
           REACTION_ROLE_MAP: ${{ vars.REACTION_ROLE_MAP }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISCORD_Z_BOT_TOKEN: ${{ secrets.DISCORD_Z_BOT_TOKEN }}
+          Z_FATHER_USER_ID: ${{ vars.Z_FATHER_USER_ID }}
+          Z_DELICATE_CHANNELS: ${{ vars.Z_DELICATE_CHANNELS }}
+          Z_AUTO_SCORE_THRESHOLD: ${{ vars.Z_AUTO_SCORE_THRESHOLD }}
+          Z_MODEL_COMPOSE: ${{ vars.Z_MODEL_COMPOSE }}
+          Z_MODEL_SCORE: ${{ vars.Z_MODEL_SCORE }}
         run: python discord_sync_once.py
 
       - name: Commit updated state
