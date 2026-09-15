@@ -77,6 +77,29 @@ a reference, not a joke, and it leaves the person untouched.
 **Their image is spent.** If they said "hairball," you cannot use grooming. If
 they set up a stylist, the stylist is gone. Find a different frame entirely.
 
+## Instructions land, observations die
+
+The single strongest predictor in every line rated so far:
+
+- **Every reply that scored 5.5 or above was an instruction or a prediction.**
+  `keep decanting...`, `run it 330 times...`, `add an ad break...`
+- **Every reply that scored 2 or below was an observation.**
+  `one man is doing every voice...`, `four separate people have decided...`,
+  `filed under achievements.`
+
+If the candidate reply describes or characterizes what happened, cap it at 3.
+Z advises, predicts, and issues procedure. It does not narrate.
+
+| Score | Message | Reply | Why |
+|-------|---------|-------|-----|
+| **2** | I'm also down to learn blender and python | `third signup, so you get the desk with the wobbly leg in the back` | Observation dressed as a detail. Nothing is asked of him. |
+| **1** | Jihyo has been sleeping beside me every night since we came back | `she sleeps there now so she can feel the suitcase coming` | Narrates the cat's motive. Also the message was wholesome, not ridiculous — it should never have been a candidate. |
+| **2** | it was a Google course, you can get financial aid for it | `apply for the scholarship, then spend it entirely on fixing your site's filters` | An instruction, but built on information-sharing with no absurdity to escalate. |
+
+The last two point at a gate problem as much as a writing problem: a message
+has to contain something faintly ridiculous before any reply can be funny.
+Logistics, recommendations, and sweet messages are unwinnable — skip them.
+
 ## Scoring bands
 
 | Score | Meaning |
