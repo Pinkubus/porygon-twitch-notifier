@@ -19,6 +19,7 @@ import activity_log
 import discord_roles
 import reaction_roles
 import quotes
+import porygon_z
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("porygon.discord_sync_once")
@@ -27,8 +28,9 @@ logger = logging.getLogger("porygon.discord_sync_once")
 def main() -> int:
     reaction_roles_enabled = reaction_roles.is_configured()
     quotes_enabled = quotes.is_configured()
-    if not (reaction_roles_enabled or quotes_enabled):
-        logger.info("Neither reaction-roles nor quotes are configured — nothing to do")
+    porygon_z_enabled = porygon_z.is_configured()
+    if not (reaction_roles_enabled or quotes_enabled or porygon_z_enabled):
+        logger.info("Neither reaction-roles, quotes, nor Porygon Z are configured — nothing to do")
         return 0
 
     bot_user_id = discord_roles.get_bot_user_id(os.environ["DISCORD_BOT_TOKEN"])
@@ -40,6 +42,8 @@ def main() -> int:
         reaction_roles.sync(bot_user_id)
     if quotes_enabled:
         quotes.scan_and_process(bot_user_id)
+    if porygon_z_enabled:
+        porygon_z.scan_and_process(bot_user_id)
     activity_log.flush_if_dirty()
     return 0
 

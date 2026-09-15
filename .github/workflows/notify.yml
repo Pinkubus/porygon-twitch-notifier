@@ -46,5 +46,6 @@ jobs:
           DISCORD_REACTION_CHANNEL_ID: ${{ vars.DISCORD_REACTION_CHANNEL_ID }}
           DISCORD_REACTION_MESSAGE_ID: ${{ vars.DISCORD_REACTION_MESSAGE_ID }}
           REACTION_ROLE_MAP: ${{ vars.REACTION_ROLE_MAP }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python loop.py
 

@@ -25,6 +25,7 @@ import twitch_api
 import discord_roles
 import reaction_roles
 import quotes
+import porygon_z
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("porygon.loop")
@@ -156,15 +157,18 @@ def main() -> int:
 
     reaction_roles_enabled = reaction_roles.is_configured()
     quotes_enabled = quotes.is_configured()
+    porygon_z_enabled = porygon_z.is_configured()
     bot_user_id = None
-    if reaction_roles_enabled or quotes_enabled:
+    if reaction_roles_enabled or quotes_enabled or porygon_z_enabled:
         bot_user_id = discord_roles.get_bot_user_id(os.environ["DISCORD_BOT_TOKEN"])
         reaction_roles_enabled = reaction_roles_enabled and bot_user_id is not None
         quotes_enabled = quotes_enabled and bot_user_id is not None
+        porygon_z_enabled = porygon_z_enabled and bot_user_id is not None
         logger.info(f"Reaction roles: {'enabled' if reaction_roles_enabled else 'disabled (setup incomplete)'}")
         logger.info(f"Quotes: {'enabled' if quotes_enabled else 'disabled (setup incomplete)'}")
+        logger.info(f"Porygon Z: {'enabled' if porygon_z_enabled else 'disabled (setup incomplete)'}")
 
-    if not twitch_enabled and not (reaction_roles_enabled or quotes_enabled):
+    if not twitch_enabled and not (reaction_roles_enabled or quotes_enabled or porygon_z_enabled):
         logger.error("Nothing to do: Twitch is disabled and no Discord bot features are configured")
         return 1
 
@@ -205,6 +209,9 @@ def main() -> int:
 
             if quotes_enabled and quotes.scan_and_process(bot_user_id):
                 _commit_files(["quotes.json", "quotes_scan_state.json"], "Update quotes [skip ci]")
+
+            if porygon_z_enabled and porygon_z.scan_and_process(bot_user_id):
+                _commit_files(["porygon_z_state.json"], "Update Porygon Z state [skip ci]")
 
             if activity_log.flush_if_dirty():
                 _commit_files(["activity.log"], "Update activity log [skip ci]")
