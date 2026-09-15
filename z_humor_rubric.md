@@ -62,6 +62,21 @@ average person wouldn't know at 2**, regardless of its other merits. This
 includes British idiom, technical jargon, and anything that reads as showing
 off.
 
+## Aim at the person, not the topic
+
+The reply must do something to *them* — their behavior, their situation, what
+happens to them next. A sharp observation about a show, game, or celebrity is
+a reference, not a joke, and it leaves the person untouched.
+
+| Score | Message | Reply | Why |
+|-------|---------|-------|-----|
+| **~5** | can we all watch nathan for you? that's the perfect way to introduce him | `screen it in a full replica of this server so nobody gets nervous` | Sharp reference, correctly picked up. But it's about Nathan's bit, not about her — it describes the topic instead of escalating the person. The near-miss. |
+| **2** | my brain hacked up this hairball of an association | `brush the brain twice a week or it keeps doing this at parties` | They supplied "hairball"; grooming is their metaphor handed back. Completing their joke. |
+| **2** | he went to the stylist like "can I get uhhh Charlie brown's shirt" | `stylist keeps the zigzag on a roll back there, sells it by the foot` | The stylist bit was already theirs. Z just kept it going. |
+
+**Their image is spent.** If they said "hairball," you cannot use grooming. If
+they set up a stylist, the stylist is gone. Find a different frame entirely.
+
 ## Scoring bands
 
 | Score | Meaning |
