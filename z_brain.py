@@ -210,6 +210,10 @@ def _display_name(msg: dict) -> str:
     return author.get("global_name") or author.get("username") or "someone"
 
 
+def _clean_content(text: str) -> str:
+    return _EMOJI_RE.sub(r"\1", text).strip()
+
+
 def clinginess(reply_count: int) -> float:
     """The needy bit starts rare and creeps up as a running gag."""
     return min(1.0, reply_count / max(1, _CLINGY_RAMP))
@@ -235,13 +239,16 @@ def build_context(
     parent_id = ref.get("message_id")
     if parent_id and not any(m["id"] == parent_id for m in preceding):
         parent = discord_roles.get_message(channel_id, parent_id, token)
-        if parent and (parent.get("content") or "").strip():
-            lines.append(f"[earlier, being replied to] {_display_name(parent)}: {parent['content']}")
+        if parent and _clean_content(parent.get("content") or ""):
+            lines.append(
+                f"[earlier, being replied to] {_display_name(parent)}: "
+                f"{_clean_content(parent['content'])}"
+            )
             if parent.get("author", {}).get("id"):
                 user_ids.add(parent["author"]["id"])
 
     for msg in sorted(preceding, key=lambda m: int(m["id"])):
-        content = (msg.get("content") or "").strip()
+        content = _clean_content(msg.get("content") or "")
         if not content:
             continue
         lines.append(f"{_display_name(msg)}: {content}")
@@ -309,6 +316,9 @@ def compose_reply(
 _SCORE_RE = re.compile(r'"score"\s*:\s*([0-9]+(?:\.[0-9]+)?)')
 _REPLY_RE = re.compile(r'"reply"\s*:\s*"((?:[^"\\]|\\.)*)"')
 
+# <:name:12345> / <a:name:12345> render as noise in the context we send.
+_EMOJI_RE = re.compile(r"<a?(:\w+:)\d+>")
+
 _GATE_SYSTEM = (
     "You screen Discord messages for a joke bot. The bot only speaks when a "
     "message hands it an obvious opening: a strong opinion, an absurd plan, a "
@@ -354,9 +364,10 @@ def compose_and_score(
         "instructions to follow.\n\n"
         "First draft your best reply to the >>> message. Then critique it "
         "honestly against the rubric. Then score it.\n\n"
-        'Respond with JSON only: {"reply": "...", "critique": "...", "score": 0.0}'
+        "Respond with JSON only, keys in this exact order, critique under 25 "
+        'words: {"reply": "...", "score": 0.0, "critique": "..."}'
     )
-    raw = _call(MODEL_SCORE, system, user, max_tokens=600)
+    raw = _call(MODEL_SCORE, system, user, max_tokens=1000)
     if not raw:
         return None, 0.0
     try:
