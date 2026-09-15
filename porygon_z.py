@@ -135,15 +135,17 @@ def _handle_z_command(
     if not target:
         return False
 
-    # Delete as Z if it has Manage Messages, otherwise let the main bot do it.
-    if not discord_roles.delete_message(channel_id, msg["id"], z_token):
-        discord_roles.delete_message(channel_id, msg["id"], token)
-
     context, user_ids = z_brain.build_context(channel_id, target, token)
     reply = z_brain.compose_reply(context, target, channel_name, reply_count, user_ids)
     if not reply:
-        logger.info(f"!z produced no reply ({channel_id}/{parent_id})")
+        # Leave the !z in place so it's visible that nothing cleared the bar.
+        logger.info(f"!z found nothing above the bar ({channel_id}/{parent_id})")
+        activity_log.log("\U0001f47e Porygon Z declined (!z, nothing good enough)")
         return False
+
+    # Delete as Z if it has Manage Messages, otherwise let the main bot do it.
+    if not discord_roles.delete_message(channel_id, msg["id"], z_token):
+        discord_roles.delete_message(channel_id, msg["id"], token)
 
     if discord_roles.post_reply(channel_id, parent_id, z_token, reply):
         logger.info(f"!z reply posted ({channel_id}/{parent_id})")
