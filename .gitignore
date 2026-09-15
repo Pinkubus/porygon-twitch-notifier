@@ -4,3 +4,4 @@ __pycache__/
 quotes_watch_local.log
 # Personality reads on real server members — keep them off a public repo.
 z_user_profiles.json
+_tmp_*

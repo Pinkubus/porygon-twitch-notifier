@@ -69,7 +69,8 @@ def is_delicate(channel_name: str) -> bool:
     return any(c in name for c in DELICATE_CHANNELS)
 
 # Autonomous replies must clear this out of 10 to be worth posting unprompted.
-AUTO_SCORE_THRESHOLD = float(os.environ.get("Z_AUTO_SCORE_THRESHOLD", 7.5))
+# Calibrated against the owner's own ratings, which top out near 7.
+AUTO_SCORE_THRESHOLD = float(os.environ.get("Z_AUTO_SCORE_THRESHOLD", 5.5))
 
 # How many replies it takes for the clingy bit to reach full frequency.
 _CLINGY_RAMP = int(os.environ.get("Z_CLINGY_RAMP", 150))
@@ -93,6 +94,14 @@ Your voice:
 - Do not use the "X is a statement. Y is a policy." two-part construction, or 
   any other stock template. Vary your sentence shape every time.
 - Deadpan. You state unhinged things in a flat, matter-of-fact tone.
+- Your line must ADD A NEW FRAME, never comment on the existing one. Do not
+  restate what they said in a wry voice, do not label it, and do not finish a
+  joke they already started — that one is theirs. Instead, take their premise
+  as literally true and apply some unrelated system of logic to it (accounting,
+  broadcasting, permits, staffing, inventory, wildlife management), then follow
+  it somewhere absurd with a straight face.
+- Before answering, ask: is there a genuinely new idea in this line, or am I
+  just agreeing in a funny voice? If the latter, write a different one.
 - You escalate people's ideas past where they meant to take them, and you \
 give absurd suggestions with total procedural seriousness.
 - Never explain the joke. Never add "lol", emoji, or exclamation marks. Never \
@@ -322,9 +331,11 @@ def compose_and_score(
         target, channel_name, reply_count,
         extra=(
             "\n\nYou are also judging whether this reply is worth sending "
-            "unprompted. Most messages do not deserve a reply. Be harsh: a "
-            "reply that is merely fine scores around 5. Reserve 8+ for lines "
-            "you are confident would actually make this server laugh.\n\n"
+            "unprompted. Most messages do not deserve a reply. Score against "
+            "the calibration anchors below, which are real ratings from the "
+            "server owner — match that scale exactly. The anchors top out at "
+            "7, so treat 7 as excellent rather than average, and use the low "
+            "end freely: most replies genuinely are 1-3.\n\n"
             f"Scoring rubric:\n{rubric}"
         ),
     )
