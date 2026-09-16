@@ -157,18 +157,20 @@ def _handle_z_command(
 def _try_auto_reply(
     msg: dict, channel_id: str, channel_name: str, token: str, z_token: str, reply_count: int,
 ) -> bool:
-    """Unprompted: only posts if Z rates its own line highly enough."""
+    """Unprompted: only posts if Z judges its best draft worth interrupting for."""
     if not z_brain.worth_considering(msg.get("content") or ""):
         return False
 
     context, user_ids = z_brain.build_context(channel_id, msg, token)
-    reply, score = z_brain.compose_and_score(context, msg, channel_name, reply_count, user_ids)
-    if not reply or score < z_brain.AUTO_SCORE_THRESHOLD:
+    reply, worth_posting = z_brain.compose_best(
+        context, msg, channel_name, reply_count, user_ids, unprompted=True,
+    )
+    if not reply or not worth_posting:
         return False
 
     if discord_roles.post_reply(channel_id, msg["id"], z_token, reply):
-        logger.info(f"Auto-reply posted, score {score} ({channel_id}/{msg['id']})")
-        activity_log.log(f"\U0001f47e Porygon Z replied unprompted ({score}/10)")
+        logger.info(f"Auto-reply posted ({channel_id}/{msg['id']}): {reply}")
+        activity_log.log("\U0001f47e Porygon Z replied unprompted")
         return True
     return False
 
