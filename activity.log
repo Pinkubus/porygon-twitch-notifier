@@ -4928,3 +4928,36 @@
 [2026-09-16 19:04:59Z] ❌ Failed to revoke role 🃏 from 195284975183069184 (will retry)
 [2026-09-16 19:05:02Z] ❌ Failed to revoke role 🃏 from 193880505521930240 (will retry)
 [2026-09-16 19:05:06Z] ❌ Failed to revoke role 🃏 from 243191787294949386 (will retry)
+[2026-09-16 19:05:29Z] ❌ Failed to revoke role 🎮 from 193880505521930240 (will retry)
+[2026-09-16 19:05:33Z] ❌ Failed to revoke role 🎮 from 333464277794947072 (will retry)
+[2026-09-16 19:05:37Z] ❌ Failed to revoke role 🎮 from 194245240041897984 (will retry)
+[2026-09-16 19:05:40Z] ❌ Failed to revoke role 🎮 from 195284975183069184 (will retry)
+[2026-09-16 19:05:44Z] ❌ Failed to revoke role 🎮 from 234479235551592448 (will retry)
+[2026-09-16 19:05:47Z] ❌ Failed to revoke role 🎮 from 243191787294949386 (will retry)
+[2026-09-16 19:05:54Z] ❌ Failed to revoke role 🎨 from 193880505521930240 (will retry)
+[2026-09-16 19:05:58Z] ❌ Failed to revoke role 🎨 from 333464277794947072 (will retry)
+[2026-09-16 19:06:02Z] ❌ Failed to revoke role 🎨 from 195284975183069184 (will retry)
+[2026-09-16 19:06:05Z] ❌ Failed to revoke role 🎨 from 234479235551592448 (will retry)
+[2026-09-16 19:06:09Z] ✅ Revoked role 🎨 from 243191787294949386
+[2026-09-16 19:06:15Z] ❌ Failed to revoke role 🍲 from 195284975183069184 (will retry)
+[2026-09-16 19:06:19Z] ❌ Failed to revoke role 🍲 from 243191787294949386 (will retry)
+[2026-09-16 19:06:26Z] ❌ Failed to revoke role 💻 from 193880505521930240 (will retry)
+[2026-09-16 19:06:29Z] ❌ Failed to revoke role 💻 from 333464277794947072 (will retry)
+[2026-09-16 19:06:33Z] ❌ Failed to revoke role 💻 from 194245240041897984 (will retry)
+[2026-09-16 19:06:40Z] ❌ Failed to revoke role 🎬 from 234479235551592448 (will retry)
+[2026-09-16 19:06:44Z] ❌ Failed to revoke role 🎬 from 333464277794947072 (will retry)
+[2026-09-16 19:06:47Z] ❌ Failed to revoke role 🎬 from 195284975183069184 (will retry)
+[2026-09-16 19:06:51Z] ❌ Failed to revoke role 🎬 from 243191787294949386 (will retry)
+[2026-09-16 19:06:58Z] ❌ Failed to revoke role 🌸 from 193880505521930240 (will retry)
+[2026-09-16 19:07:01Z] ❌ Failed to revoke role 🌸 from 333464277794947072 (will retry)
+[2026-09-16 19:07:05Z] ❌ Failed to revoke role 🌸 from 194245240041897984 (will retry)
+[2026-09-16 19:07:08Z] ❌ Failed to revoke role 🌸 from 195284975183069184 (will retry)
+[2026-09-16 19:07:09Z] ✅ Revoked role 🌸 from 234479235551592448
+[2026-09-16 19:07:12Z] ❌ Failed to revoke role 🌸 from 243191787294949386 (will retry)
+[2026-09-16 19:07:16Z] ✅ Revoked role 🎪 from 193880505521930240
+[2026-09-16 19:07:19Z] ❌ Failed to revoke role 🎪 from 333464277794947072 (will retry)
+[2026-09-16 19:07:23Z] ✅ Revoked role 🎪 from 194245240041897984
+[2026-09-16 19:07:26Z] ❌ Failed to revoke role 🎪 from 195284975183069184 (will retry)
+[2026-09-16 19:07:30Z] ✅ Revoked role 🎪 from 234479235551592448
+[2026-09-16 19:07:30Z] ✅ Revoked role 🎪 from 243191787294949386
+[2026-09-16 19:07:31Z] ✅ Granted role 🃏 to 194245240041897984
