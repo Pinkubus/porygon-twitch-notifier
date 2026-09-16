@@ -100,6 +100,13 @@ def get_guild_emojis(guild_id: str, token: str) -> list[dict]:
 _channel_cache: dict[str, tuple[float, list[dict]]] = {}
 _CHANNEL_TTL = int(os.environ.get("DISCORD_CHANNEL_CACHE_SECONDS", 300))
 
+# Per-channel message cache. quotes and porygon_z both sweep every channel on
+# the same cycle with their own cursors, so without this the whole server gets
+# fetched twice. Messages after a later cursor are a subset of messages after
+# an earlier one, so one fetch can serve both.
+_message_cache: dict[str, tuple[float, Optional[str], int, list[dict]]] = {}
+_MESSAGE_TTL = float(os.environ.get("DISCORD_MESSAGE_CACHE_SECONDS", 8))
+
 
 def get_guild_text_channels(guild_id: str, token: str) -> list[dict]:
     """Text channels (type 0) in the guild, for message-scanning features.
@@ -123,15 +130,39 @@ def get_channel_messages(
     before: Optional[str] = None, limit: int = 100,
 ) -> list[dict]:
     """Raw message objects (newest-first), per Discord's default ordering."""
+    use_cache = before is None
+    if use_cache:
+        entry = _message_cache.get(channel_id)
+        if (
+            entry
+            and time.time() - entry[0] < _MESSAGE_TTL
+            and entry[2] >= limit
+            and _covers(entry[1], after)
+        ):
+            return [m for m in entry[3] if after is None or int(m["id"]) > int(after)][:limit]
+
     params: dict = {"limit": limit}
     if after:
         params["after"] = after
     if before:
         params["before"] = before
-    return _json(
+    messages = _json(
         _request("GET", f"{DISCORD_API}/channels/{channel_id}/messages", token, params=params),
         f"messages for {channel_id}", [],
     )
+    if use_cache and messages is not None:
+        _message_cache[channel_id] = (time.time(), after, limit, messages)
+    return messages
+
+
+def _covers(cached_after: Optional[str], wanted_after: Optional[str]) -> bool:
+    """True if a fetch from `cached_after` already contains everything after
+    `wanted_after` — i.e. the cached cursor is at or behind the wanted one."""
+    if cached_after is None:
+        return True
+    if wanted_after is None:
+        return False
+    return int(cached_after) <= int(wanted_after)
 
 
 def get_bot_user_id(token: str) -> Optional[str]:
