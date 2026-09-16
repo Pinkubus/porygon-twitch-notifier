@@ -105,16 +105,21 @@ def _commit_and_push(paths: list[str], message: str):
     if _git("add", *paths) != 0:
         return
     if subprocess.run(
-        ["git", "-C", _HERE, "diff", "--cached", "--quiet"], timeout=_GIT_TIMEOUT,
+        ["git", "-C", _HERE, "diff", "--cached", "--quiet", "--"] + paths, timeout=_GIT_TIMEOUT,
     ).returncode == 0:
         return  # nothing staged
-    if _git("commit", "-m", message) != 0:
+    # Scope the commit to these paths so unrelated staged work never gets
+    # swept into a bot commit.
+    if _git("commit", "-m", message, "--", *paths) != 0:
         return
     state_files = [p for p in ("quotes_scan_state.json", "porygon_z_state.json") if p in paths]
     for _ in range(3):
         if _git("push") == 0:
             return
-        if _git("pull", "--rebase") == 0:
+        # --autostash is essential: each feature commits only its own files, so
+        # the other feature's pending edits sit unstaged and would otherwise
+        # abort the rebase, deadlocking every future push.
+        if _git("pull", "--rebase", "--autostash") == 0:
             continue
         if (
             state_files
