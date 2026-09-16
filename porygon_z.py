@@ -147,8 +147,8 @@ def _handle_z_command(
     if not discord_roles.delete_message(channel_id, msg["id"], z_token):
         discord_roles.delete_message(channel_id, msg["id"], token)
 
-    if discord_roles.post_reply(channel_id, parent_id, z_token, reply):
-        logger.info(f"!z reply posted ({channel_id}/{parent_id})")
+    if discord_roles.post_reply(channel_id, parent_id, z_token, z_brain.glitchify(reply)):
+        logger.info(f"!z reply posted ({channel_id}/{parent_id}): {reply}")
         activity_log.log("\U0001f47e Porygon Z replied (!z)")
         return True
     return False
@@ -168,7 +168,7 @@ def _try_auto_reply(
     if not reply or not worth_posting:
         return False
 
-    if discord_roles.post_reply(channel_id, msg["id"], z_token, reply):
+    if discord_roles.post_reply(channel_id, msg["id"], z_token, z_brain.glitchify(reply)):
         logger.info(f"Auto-reply posted ({channel_id}/{msg['id']}): {reply}")
         activity_log.log("\U0001f47e Porygon Z replied unprompted")
         return True

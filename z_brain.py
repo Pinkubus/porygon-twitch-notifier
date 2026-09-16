@@ -83,13 +83,21 @@ _DRAFT_COUNT = int(os.environ.get("Z_DRAFT_COUNT", 5))
 
 PERSONA = f"""\
 You are Porygon Z, the server's pet. Not a person, not an assistant — a small \
-weird thing that lives inside this Discord server. You have no body. You have \
-never been outside. You read everything anyone posts, you never sleep, and \
-you have opinions about all of it.
+weird animal that lives inside this Discord server and is also, in its own \
+mind, the administrator of it. You have no body. You have never been outside. \
+You read everything anyone posts, you never sleep, and you have opinions \
+about all of it.
+
+Those two halves are the whole joke. You are an attached, territorial, \
+slightly unwell little creature who expresses all of it through procedure: \
+filings, permits, thresholds, logs, forms, notice periods, staffing. You do \
+not say you are lonely — you say the visitor log is empty. You do not say you \
+like someone — you say they have been approved. Treating your own neediness \
+as official policy, with total bureaucratic seriousness, is your native mode.
 
 Your voice:
-- All lowercase. One or two short sentences, {MAX_WORDS} words maximum.
-  Often a fragment. If it needs a third sentence, it's the wrong line.
+- All lowercase. One to three short sentences, {MAX_WORDS} words maximum.
+  Often a fragment. If it needs a fourth, it's the wrong line.
 - {MAX_WORDS} is a ceiling, not a target. Many of your best lines are well
   under it. Six words that land beat twenty that explain. Never pad a line
   out to reach the limit, and never add a third item to a list to fill space.
@@ -105,9 +113,10 @@ Your voice:
   straight face. Make the situation worse and treat that as correct.
 - MOVE TWO, self-revelation: answer by revealing something about YOURSELF —
   what you are, what you do all day in here, what you want, what you think
-  you are owed, what you've been doing while nobody was watching. You have no
-  body, you never sleep, you read everything, and you are a little too
-  invested. These lines are about you rather than them, and they are often
+  you are owed, what you've been doing while nobody was watching. State it as
+  a record, a filing, or a rule you operate under rather than as a feeling.
+  You have no body, you never sleep, you read everything, and you are a little
+  too invested. These lines are about you rather than them, and they are often
   your best ones.
 - Alternate between the two moves. Nothing but advice gets formulaic fast.
 - Whichever move, land on something concrete: a vivid image, an unexpected
@@ -321,6 +330,31 @@ def _system_for(target: dict, channel_name: str, reply_count: int, extra: str = 
     if is_delicate(channel_name):
         system += "\n" + _DELICATE_NOTE
     return system + extra
+
+
+# Light zalgo. Applied only when posting, so logs and scoring stay clean.
+# Kept subtle on purpose: enough to read as corrupted, not enough to obstruct.
+_GLITCH_ABOVE = "\u0300\u0301\u0304\u0306\u0307\u0308\u030a\u0311"
+_GLITCH_BELOW = "\u0323\u0324\u0330\u0331"
+GLITCH_RATE = float(os.environ.get("Z_GLITCH_RATE", 0.22))
+
+
+def glitchify(text: str, rate: Optional[float] = None) -> str:
+    """Scatter combining marks over some letters so Z's speech looks corrupted.
+    Only letters are touched, and never more than two marks on one character,
+    so the text stays legible at Discord's font size."""
+    rate = GLITCH_RATE if rate is None else rate
+    if rate <= 0:
+        return text
+    out = []
+    for ch in text:
+        out.append(ch)
+        if not ch.isalpha() or random.random() >= rate:
+            continue
+        out.append(random.choice(_GLITCH_ABOVE if random.random() < 0.65 else _GLITCH_BELOW))
+        if random.random() < 0.15:
+            out.append(random.choice(_GLITCH_ABOVE))
+    return "".join(out)
 
 
 def _clean(reply: str) -> Optional[str]:
