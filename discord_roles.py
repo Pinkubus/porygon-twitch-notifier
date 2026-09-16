@@ -27,6 +27,48 @@ def _headers(token: str) -> dict:
     return {"Authorization": f"Bot {token}", "User-Agent": USER_AGENT}
 
 
+_MAX_RETRIES = int(os.environ.get("DISCORD_MAX_RETRIES", 3))
+
+
+def _request(method: str, url: str, token: str, **kwargs) -> Optional[requests.Response]:
+    """Discord request that waits out 429s instead of dropping the call.
+
+    The fast local watcher polls every channel every few seconds, so rate
+    limits are routine rather than exceptional; Discord tells us exactly how
+    long to wait, so honour it rather than losing the message.
+    """
+    for attempt in range(_MAX_RETRIES):
+        try:
+            resp = requests.request(
+                method, url, headers=_headers(token), timeout=15, **kwargs,
+            )
+        except requests.RequestException as e:
+            logger.warning(f"{method} {url.split('/api/v10')[-1]} failed: {e}")
+            return None
+        if resp.status_code != 429:
+            return resp
+        wait = float(resp.headers.get("Retry-After") or 1.0)
+        try:
+            wait = float(resp.json().get("retry_after", wait))
+        except Exception:
+            pass
+        if attempt == _MAX_RETRIES - 1:
+            logger.warning(f"Rate limited on {url.split('/api/v10')[-1]}, out of retries")
+            return resp
+        logger.info(f"Rate limited, waiting {wait:.1f}s")
+        time.sleep(min(wait, 10.0) + 0.1)
+    return None
+
+
+def _json(resp: Optional[requests.Response], what: str, default):
+    if resp is None:
+        return default
+    if resp.status_code != 200:
+        logger.warning(f"Failed to fetch {what} {resp.status_code}: {resp.text[:200]}")
+        return default
+    return resp.json()
+
+
 def get_role_map() -> dict[str, str]:
     """emoji -> role_id, from the REACTION_ROLE_MAP repo variable (JSON)."""
     raw = os.environ.get("REACTION_ROLE_MAP", "")
@@ -55,13 +97,25 @@ def get_guild_emojis(guild_id: str, token: str) -> list[dict]:
     return resp.json()
 
 
+_channel_cache: dict[str, tuple[float, list[dict]]] = {}
+_CHANNEL_TTL = int(os.environ.get("DISCORD_CHANNEL_CACHE_SECONDS", 300))
+
+
 def get_guild_text_channels(guild_id: str, token: str) -> list[dict]:
-    """Text channels (type 0) in the guild, for message-scanning features."""
-    resp = requests.get(f"{DISCORD_API}/guilds/{guild_id}/channels", headers=_headers(token), timeout=10)
-    if resp.status_code != 200:
-        logger.warning(f"Failed to fetch guild channels {resp.status_code}: {resp.text[:200]}")
-        return []
-    return [c for c in resp.json() if c.get("type") == 0]
+    """Text channels (type 0) in the guild, for message-scanning features.
+    Cached because every scan cycle asks for it and it almost never changes."""
+    cached = _channel_cache.get(guild_id)
+    if cached and time.time() - cached[0] < _CHANNEL_TTL:
+        return cached[1]
+    data = _json(
+        _request("GET", f"{DISCORD_API}/guilds/{guild_id}/channels", token),
+        "guild channels", None,
+    )
+    if data is None:
+        return cached[1] if cached else []
+    channels = [c for c in data if c.get("type") == 0]
+    _channel_cache[guild_id] = (time.time(), channels)
+    return channels
 
 
 def get_channel_messages(
@@ -74,13 +128,10 @@ def get_channel_messages(
         params["after"] = after
     if before:
         params["before"] = before
-    resp = requests.get(
-        f"{DISCORD_API}/channels/{channel_id}/messages", headers=_headers(token), params=params, timeout=10,
+    return _json(
+        _request("GET", f"{DISCORD_API}/channels/{channel_id}/messages", token, params=params),
+        f"messages for {channel_id}", [],
     )
-    if resp.status_code != 200:
-        logger.warning(f"Failed to fetch messages for {channel_id} {resp.status_code}: {resp.text[:200]}")
-        return []
-    return resp.json()
 
 
 def get_bot_user_id(token: str) -> Optional[str]:
@@ -92,23 +143,17 @@ def get_bot_user_id(token: str) -> Optional[str]:
 
 
 def get_message(channel_id: str, message_id: str, token: str) -> Optional[dict]:
-    resp = requests.get(
-        f"{DISCORD_API}/channels/{channel_id}/messages/{message_id}",
-        headers=_headers(token), timeout=10,
+    return _json(
+        _request("GET", f"{DISCORD_API}/channels/{channel_id}/messages/{message_id}", token),
+        f"message {message_id}", None,
     )
-    if resp.status_code != 200:
-        logger.warning(f"Failed to fetch message {message_id} {resp.status_code}: {resp.text[:200]}")
-        return None
-    return resp.json()
 
 
 def delete_message(channel_id: str, message_id: str, token: str) -> bool:
-    resp = requests.delete(
-        f"{DISCORD_API}/channels/{channel_id}/messages/{message_id}",
-        headers=_headers(token), timeout=10,
-    )
-    if resp.status_code != 204:
-        logger.warning(f"Failed to delete message {message_id} {resp.status_code}: {resp.text[:200]}")
+    resp = _request("DELETE", f"{DISCORD_API}/channels/{channel_id}/messages/{message_id}", token)
+    if resp is None or resp.status_code != 204:
+        code = resp.status_code if resp is not None else "error"
+        logger.warning(f"Failed to delete message {message_id} {code}")
         return False
     return True
 
@@ -152,12 +197,10 @@ def post_reply(channel_id: str, message_id: str, token: str, content: str) -> Op
         "message_reference": {"message_id": message_id, "channel_id": channel_id, "fail_if_not_exists": False},
         "allowed_mentions": {"parse": [], "replied_user": False},
     }
-    resp = requests.post(
-        f"{DISCORD_API}/channels/{channel_id}/messages",
-        headers=_headers(token), json=payload, timeout=10,
-    )
-    if resp.status_code not in (200, 201):
-        logger.warning(f"Failed to post reply {resp.status_code}: {resp.text[:200]}")
+    resp = _request("POST", f"{DISCORD_API}/channels/{channel_id}/messages", token, json=payload)
+    if resp is None or resp.status_code not in (200, 201):
+        code = resp.status_code if resp is not None else "error"
+        logger.warning(f"Failed to post reply {code}")
         return None
     return resp.json()["id"]
 
