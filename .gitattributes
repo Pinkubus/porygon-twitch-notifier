@@ -1,0 +1,6 @@
+# activity.log is append-only and written by multiple processes (this local
+# watcher + the GitHub Actions loop). Conflicts are always "both sides added
+# new lines at the end" — union merge concatenates and dedupes automatically
+# instead of leaving conflict markers that _commit_and_push can't resolve,
+# which was previously causing every push to abort and retry forever.
+activity.log merge=union
