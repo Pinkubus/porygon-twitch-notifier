@@ -40,13 +40,10 @@ jobs:
           DISCORD_REACTION_CHANNEL_ID: ${{ vars.DISCORD_REACTION_CHANNEL_ID }}
           DISCORD_REACTION_MESSAGE_ID: ${{ vars.DISCORD_REACTION_MESSAGE_ID }}
           REACTION_ROLE_MAP: ${{ vars.REACTION_ROLE_MAP }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          DISCORD_Z_BOT_TOKEN: ${{ secrets.DISCORD_Z_BOT_TOKEN }}
-          Z_FATHER_USER_ID: ${{ vars.Z_FATHER_USER_ID }}
-          Z_DELICATE_CHANNELS: ${{ vars.Z_DELICATE_CHANNELS }}
-          Z_AUTO_SCORE_THRESHOLD: ${{ vars.Z_AUTO_SCORE_THRESHOLD }}
-          Z_MODEL_COMPOSE: ${{ vars.Z_MODEL_COMPOSE }}
-          Z_MODEL_SCORE: ${{ vars.Z_MODEL_SCORE }}
+          # Porygon Z is deliberately NOT enabled here (no ANTHROPIC_API_KEY) —
+          # the local watcher owns Z with a 10s cursor, and running Z on both
+          # this 5-minute cron and the local watcher caused duplicate replies
+          # whenever a !z landed before the state commit synced between them.
         run: python discord_sync_once.py
 
       - name: Commit updated state

@@ -28,9 +28,13 @@ logger = logging.getLogger("porygon.discord_sync_once")
 def main() -> int:
     reaction_roles_enabled = reaction_roles.is_configured()
     quotes_enabled = quotes.is_configured()
-    porygon_z_enabled = porygon_z.is_configured()
-    if not (reaction_roles_enabled or quotes_enabled or porygon_z_enabled):
-        logger.info("Neither reaction-roles, quotes, nor Porygon Z are configured — nothing to do")
+    # Porygon Z is owned by the local watcher (quotes_watch_local.py). Running
+    # it here too made this cron and the watcher race on the shared,
+    # git-synced cursor — whichever advanced first "handled" a message, so a
+    # summon this pass skipped never got answered at all.
+    porygon_z_enabled = False
+    if not (reaction_roles_enabled or quotes_enabled):
+        logger.info("Neither reaction-roles nor quotes are configured — nothing to do")
         return 0
 
     bot_user_id = discord_roles.get_bot_user_id(os.environ["DISCORD_BOT_TOKEN"])
