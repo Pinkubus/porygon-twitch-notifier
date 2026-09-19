@@ -1,137 +1,138 @@
 {
   "1436946294282129409": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1549820417336803410"
+    "after": "1549820417336803410",
+    "last_auto": 0
   },
   "1436946294282129411": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1550660605688545351"
+    "after": "1550660605688545351",
+    "last_auto": 0
   },
   "1437453865925738616": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1550850258920149073"
+    "after": "1550850258920149073",
+    "last_auto": 0
   },
   "1439993682697912400": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1550341447645925416"
+    "after": "1550341447645925416",
+    "last_auto": 0
   },
   "1450534137285967973": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1550342009972068404"
+    "after": "1550342009972068404",
+    "last_auto": 0
   },
   "1451746667765432381": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1549463627806019724"
+    "after": "1549463627806019724",
+    "last_auto": 0
   },
   "1462518902239137914": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1550788876514238479"
+    "after": "1550788876514238479",
+    "last_auto": 0
   },
   "1470092267909021830": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1549199496683061259"
+    "after": "1549199496683061259",
+    "last_auto": 0
   },
   "1476216614449053726": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1535669893020778618"
+    "after": "1535669893020778618",
+    "last_auto": 0
   },
   "1478887863176138935": {
     "last_fired": 0,
-    "last_auto": 1789828779.4403195,
-    "after": "1550886756117778514"
+    "after": "1550886756117778514",
+    "last_auto": 1789828779.4403195
   },
   "1488246515032916099": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1545486278991020103"
+    "after": "1545486278991020103",
+    "last_auto": 0
   },
   "1496580244432486581": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1548747215080652943"
+    "after": "1548747215080652943",
+    "last_auto": 0
   },
   "1496652001805598801": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1533535787625480323"
+    "after": "1533535787625480323",
+    "last_auto": 0
   },
   "1504124429938987218": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1535632915294064701"
+    "after": "1535632915294064701",
+    "last_auto": 0
   },
   "1504197674935652592": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1548474739826098246"
+    "after": "1548474739826098246",
+    "last_auto": 0
   },
   "1505191562278338560": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1522665505717096469"
+    "after": "1522665505717096469",
+    "last_auto": 0
   },
   "1505968765261713498": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1550613429784543273"
+    "after": "1550613429784543273",
+    "last_auto": 0
   },
   "1507088728772841542": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1514298499607433447"
+    "after": "1514298499607433447",
+    "last_auto": 0
   },
   "1507442588070973621": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1550847811191443511"
+    "after": "1550847811191443511",
+    "last_auto": 0
   },
   "1518791321719144569": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1527383485705359533"
+    "after": "1527383485705359533",
+    "last_auto": 0
   },
   "1520144435420074077": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1547298517410648154"
+    "after": "1547298517410648154",
+    "last_auto": 0
   },
   "1533645858606944256": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1550307245785358397"
+    "after": "1550307245785358397",
+    "last_auto": 0
   },
   "1533891168377766051": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1534256128899154167"
+    "after": "1534256128899154167",
+    "last_auto": 0
   },
   "1542212562035413143": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1550354268874080277"
+    "after": "1550354268874080277",
+    "last_auto": 0
   },
   "1544050198832226346": {
     "last_fired": 0,
-    "last_auto": 0,
-    "after": "1548779855825477682"
+    "after": "1548779855825477682",
+    "last_auto": 0
   },
   "1546322270140768316": {
-    "after": "1550888031488184371",
     "last_fired": 0,
-    "last_auto": 1789830741.282151
+    "last_auto": 1789830839.896441,
+    "after": "1550888031488184371"
   },
-  "_reply_count": 4,
+  "_reply_count": 5,
   "_recent_replies": [
     "checking the hive tonight, lil guy. seventeen bees now, officially a colony.",
-    "tagging a fresh meme, releasing it back into the wild before it imprints."
+    "tagging a fresh meme, releasing it back into the wild before it imprints.",
+    "prescribe a feeding tube looped through the vents, drip only, three drops an hour."
   ]
 }
