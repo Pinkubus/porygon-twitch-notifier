@@ -5146,3 +5146,10 @@
 [2026-09-21 04:48:15Z] ✅ Granted role 🎬 to 243191787294949386
 [2026-09-21 05:33:09Z] 👾 Porygon Z replied (!z)
 [2026-09-21 05:33:58Z] 🕰️ Watcher was offline ~1 min — checking for missed jugglez summons since 2026-09-21 05:32 UTC
+[2026-09-21 05:35:24Z] 🕰️ Watcher was offline ~1 min — checking for missed jugglez summons since 2026-09-21 05:33 UTC
+[2026-09-21 05:35:44Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 84.3s
+[2026-09-21 05:36:28Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 50.2s
+[2026-09-21 05:36:31Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 46.7s
+[2026-09-21 05:36:32Z] 👾 Porygon Z replied (direct summon)
+[2026-09-21 05:37:03Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 34.3s
+[2026-09-21 05:37:03Z] 👾 Porygon Z replied (direct summon)
