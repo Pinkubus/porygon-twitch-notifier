@@ -125,9 +125,9 @@
     "last_fired": 0
   },
   "1546322270140768316": {
-    "last_auto": 1789968924.5103464,
-    "after": "1551467279898775583",
-    "last_fired": 0
+    "after": "1551467765779664966",
+    "last_fired": 0,
+    "last_auto": 1789968924.5103464
   },
   "_reply_count": 16,
   "_reaction_handled": [],
