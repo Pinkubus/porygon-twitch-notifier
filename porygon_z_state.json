@@ -131,5 +131,20 @@
   },
   "_reply_count": 14,
   "_reaction_handled": [],
-  "_pending_polls": {}
+  "_pending_polls": {},
+  "1551147947864105065": {
+    "after": "1551441524783316993",
+    "last_fired": 0,
+    "last_auto": 0
+  },
+  "1551356900124393594": {
+    "after": "1551437482816438303",
+    "last_fired": 0,
+    "last_auto": 0
+  },
+  "1551430163227484162": {
+    "after": "1551435441444622387",
+    "last_fired": 0,
+    "last_auto": 0
+  }
 }
