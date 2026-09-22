@@ -1,150 +1,150 @@
 {
   "1436946294282129409": {
-    "after": "1551756304836595763",
-    "last_fired": 0,
-    "last_auto": 0
+    "after": "1551756351842033694",
+    "last_auto": 0,
+    "last_fired": 0
   },
   "1436946294282129411": {
-    "last_auto": 0,
     "after": "1551373238997884999",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1437453865925738616": {
-    "last_auto": 0,
     "after": "1551372285561274489",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1439993682697912400": {
-    "last_auto": 0,
     "after": "1551416451536257156",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1450534137285967973": {
     "after": "1551658812296003646",
-    "last_fired": 0,
-    "last_auto": 0
+    "last_auto": 0,
+    "last_fired": 0
   },
   "1451746667765432381": {
-    "last_auto": 0,
     "after": "1549463627806019724",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1462518902239137914": {
-    "last_auto": 0,
     "after": "1551397280970444823",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1470092267909021830": {
-    "last_auto": 0,
     "after": "1550972393852244010",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1476216614449053726": {
-    "last_auto": 0,
     "after": "1535669893020778618",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1478887863176138935": {
-    "last_auto": 1789828779.4403195,
     "after": "1551247601767022735",
+    "last_auto": 1789828779.4403195,
     "last_fired": 0
   },
   "1488246515032916099": {
-    "last_auto": 0,
     "after": "1545486278991020103",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1496580244432486581": {
-    "last_auto": 0,
     "after": "1548747215080652943",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1496652001805598801": {
-    "last_auto": 0,
     "after": "1533535787625480323",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1504124429938987218": {
-    "last_auto": 0,
     "after": "1535632915294064701",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1504197674935652592": {
-    "last_auto": 0,
     "after": "1548474739826098246",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1505191562278338560": {
-    "last_auto": 0,
     "after": "1522665505717096469",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1505968765261713498": {
-    "last_auto": 0,
     "after": "1550613429784543273",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1507088728772841542": {
-    "last_auto": 0,
     "after": "1514298499607433447",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1507442588070973621": {
     "after": "1551641934194282598",
-    "last_fired": 0,
-    "last_auto": 0
+    "last_auto": 0,
+    "last_fired": 0
   },
   "1518791321719144569": {
-    "last_auto": 0,
     "after": "1527383485705359533",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1520144435420074077": {
-    "last_auto": 0,
     "after": "1551439641205547089",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1533645858606944256": {
-    "last_auto": 0,
     "after": "1551242626877886565",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1533891168377766051": {
-    "last_auto": 0,
     "after": "1551362922536771665",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1542212562035413143": {
     "after": "1551610418613719122",
-    "last_fired": 0,
-    "last_auto": 1789842146.049837
+    "last_auto": 1789842146.049837,
+    "last_fired": 0
   },
   "1544050198832226346": {
-    "last_auto": 0,
     "after": "1548779855825477682",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1546322270140768316": {
     "after": "1551467765779664966",
-    "last_fired": 0,
-    "last_auto": 1789968924.5103464
+    "last_auto": 1789968924.5103464,
+    "last_fired": 0
   },
   "_reply_count": 16,
   "_reaction_handled": [],
   "_pending_polls": {},
   "1551147947864105065": {
-    "last_auto": 0,
     "after": "1551441524783316993",
+    "last_auto": 0,
     "last_fired": 0
   },
   "1551356900124393594": {
     "after": "1551755729977872447",
-    "last_fired": 0,
-    "last_auto": 0
+    "last_auto": 0,
+    "last_fired": 0
   },
   "1551430163227484162": {
-    "last_auto": 0,
     "after": "1551467145546694679",
+    "last_auto": 0,
     "last_fired": 0
   }
 }
