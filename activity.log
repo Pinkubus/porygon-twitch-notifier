@@ -5610,3 +5610,9 @@
 [2026-09-21 23:45:40Z] 🕰️ Watcher was offline ~1 min — checking for missed jugglez summons since 2026-09-21 23:44 UTC
 [2026-09-21 23:46:42Z] 🕰️ Watcher was offline ~1 min — checking for missed jugglez summons since 2026-09-21 23:45 UTC
 [2026-09-21 23:47:51Z] 🕰️ Watcher was offline ~1 min — checking for missed jugglez summons since 2026-09-21 23:46 UTC
+[2026-09-21 23:50:45Z] 🐌 Slow Anthropic call: poll_plan on claude-sonnet-5 took 35.8s
+[2026-09-22 00:09:35Z] 👾 Porygon Z re-filed a rejected poll (rerun 1)
+[2026-09-22 00:09:35Z] 👾 Porygon Z re-filed a rejected poll (rerun 2)
+[2026-09-22 01:09:02Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 48.3s
+[2026-09-22 01:10:04Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 61.1s
+[2026-09-22 01:10:04Z] 👾 Porygon Z replied (direct summon)
