@@ -6396,3 +6396,6 @@
 [2026-09-24 18:58:35Z] ✅ Granted role 🃏 to 194245240041897984
 [2026-09-24 21:51:01Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 55.4s
 [2026-09-24 21:51:35Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 34.0s
+[2026-09-24 21:53:53Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 84.6s
+[2026-09-24 21:54:39Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 45.9s
+[2026-09-24 21:54:41Z] 👾 Porygon Z replied (direct summon)
