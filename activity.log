@@ -6422,3 +6422,9 @@
 [2026-09-24 22:10:38Z] 👾 Porygon Z errored on a message (#✨wins✨) — skipped: 'charmap' codec can't encode character '\u2728' in position 14: character maps to <undefined>
 [2026-09-24 22:11:21Z] ⚠️ Instagram check for @turtle.prism returned 401 — Instagram may be rate-limiting or blocking this endpoint
 [2026-09-24 22:11:22Z] ⚠️ Instagram check for @lxzycxlm returned 401 — Instagram may be rate-limiting or blocking this endpoint
+[2026-09-24 22:11:42Z] 🕰️ Watcher was offline ~3 min — checking for missed jugglez summons since 2026-09-24 22:08 UTC
+[2026-09-24 22:13:55Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 49.5s
+[2026-09-24 22:14:38Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 42.8s
+[2026-09-24 22:14:38Z] 👾 Porygon Z errored on a message (#✨wins✨) — skipped: 'charmap' codec can't encode character '\u2728' in position 14: character maps to <undefined>
+[2026-09-24 22:14:59Z] ⚠️ Instagram check for @turtle.prism returned 401 — Instagram may be rate-limiting or blocking this endpoint
+[2026-09-24 22:15:00Z] ⚠️ Instagram check for @lxzycxlm returned 401 — Instagram may be rate-limiting or blocking this endpoint
