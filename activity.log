@@ -6394,3 +6394,5 @@
 [2026-09-24 18:58:35Z] ✅ Granted role 🃏 to 193880505521930240
 [2026-09-24 18:58:35Z] ✅ Granted role 🃏 to 243191787294949386
 [2026-09-24 18:58:35Z] ✅ Granted role 🃏 to 194245240041897984
+[2026-09-24 21:51:01Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 55.4s
+[2026-09-24 21:51:35Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 34.0s
