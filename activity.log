@@ -6456,3 +6456,5 @@
 [2026-09-25 14:44:03Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 57.1s
 [2026-09-25 14:44:48Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 45.3s
 [2026-09-25 14:44:48Z] 👾 Porygon Z errored on a message (#🏳️‍🌈🦐mental-krillness🦐🏳️‍⚧️) — skipped: 'charmap' codec can't encode characters in position 14-18: character maps to <undefined>
+[2026-09-25 14:59:13Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 65.6s
+[2026-09-25 14:59:54Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 40.4s
