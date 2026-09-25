@@ -6448,3 +6448,7 @@
 [2026-09-25 09:01:28Z] ✅ Granted role 🐈 to 193880505521930240
 [2026-09-25 09:01:28Z] ✅ Granted role 🐈 to 243191787294949386
 [2026-09-25 13:05:40Z] 👾 Porygon Z replied unprompted
+[2026-09-25 13:08:57Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 90.3s
+[2026-09-25 13:10:23Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 86.8s
+[2026-09-25 13:11:38Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 75.0s
+[2026-09-25 13:11:38Z] 👾 Porygon Z errored on a message (#🎤music🎶) — skipped: 'charmap' codec can't encode character '\U0001f3a4' in position 14: character maps to <undefined>
