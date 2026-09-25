@@ -6453,3 +6453,6 @@
 [2026-09-25 13:11:38Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 75.0s
 [2026-09-25 13:11:38Z] 👾 Porygon Z errored on a message (#🎤music🎶) — skipped: 'charmap' codec can't encode character '\U0001f3a4' in position 14: character maps to <undefined>
 [2026-09-25 13:12:22Z] 🕰️ Watcher was offline ~5 min — checking for missed jugglez summons since 2026-09-25 13:07 UTC
+[2026-09-25 14:44:03Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 57.1s
+[2026-09-25 14:44:48Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 45.3s
+[2026-09-25 14:44:48Z] 👾 Porygon Z errored on a message (#🏳️‍🌈🦐mental-krillness🦐🏳️‍⚧️) — skipped: 'charmap' codec can't encode characters in position 14-18: character maps to <undefined>
