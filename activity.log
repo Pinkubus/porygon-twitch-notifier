@@ -6490,3 +6490,16 @@
 [2026-09-26 06:18:18Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 60.9s
 [2026-09-26 06:18:50Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 32.4s
 [2026-09-26 06:18:51Z] 👾 Porygon Z replied unprompted
+[2026-09-26 06:20:25Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 44.8s
+[2026-09-26 06:21:07Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 41.8s
+[2026-09-26 06:21:08Z] 👾 Porygon Z replied (direct summon)
+[2026-09-26 06:22:11Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 57.2s
+[2026-09-26 06:23:25Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 74.5s
+[2026-09-26 06:23:26Z] 👾 Porygon Z replied (direct summon)
+[2026-09-26 06:24:50Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 81.3s
+[2026-09-26 06:25:46Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 56.0s
+[2026-09-26 06:25:47Z] 👾 Porygon Z replied (direct summon)
+[2026-09-26 06:27:45Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 90.3s
+[2026-09-26 06:29:16Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 90.3s
+[2026-09-26 06:30:46Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 90.3s
+[2026-09-26 06:30:46Z] 👾 Porygon Z gave up (jugglez, API/parsing trouble)
