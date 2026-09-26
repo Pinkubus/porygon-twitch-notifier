@@ -20,12 +20,28 @@ import time
 import logging
 import subprocess
 
+# See quotes_watch_local.py's matching block: without this, a channel name
+# or message full of emoji can throw UnicodeEncodeError on print()/logging
+# the moment stdout/stderr isn't a UTF-8-capable stream, taking that
+# message's processing down with it. GitHub Actions' runners default to
+# UTF-8 already, so this is a no-op there — it only matters if this ever
+# runs on Windows.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 import activity_log
 import twitch_api
 import discord_roles
+import porygon_names
+import z_bits
+import feature_requests
 import reaction_roles
 import quotes
 import porygon_z
+import proc_guard
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("porygon.loop")
@@ -76,7 +92,9 @@ def _alert_discord(message: str):
     if not token or not channel_id:
         return
     try:
-        discord_roles.post_message(channel_id, token, {"description": f"▽△PORYGON▽△ fainted!\n{message}"})
+        discord_roles.post_message(channel_id, token, {
+            "description": f"▽△PORYGON▽△ fainted, {porygon_names.funky(braces=False)}!\n{message}",
+        })
     except Exception as e:
         logger.warning(f"Failed to post Discord alert: {e}")
 
@@ -117,6 +135,8 @@ _TWITCH_RETRY_SECONDS = 5 * 60  # backoff between re-auth attempts once the refr
 
 
 def main() -> int:
+    proc_guard.kill_duplicate_instances(os.path.basename(__file__))
+
     client_id = os.environ.get("TWITCH_CLIENT_ID", "")
     refresh_token = os.environ.get("TWITCH_REFRESH_TOKEN", "")
     twitch_configured = bool(client_id and refresh_token)
@@ -211,8 +231,18 @@ def main() -> int:
                 _commit_files(["quotes.json", "quotes_scan_state.json"], "Update quotes [skip ci]")
 
             if porygon_z_enabled and porygon_z.scan_and_process(bot_user_id):
-                _commit_files(["porygon_z_state.json"], "Update Porygon Z state [skip ci]")
+                _commit_files(
+                    ["porygon_z_state.json", "z_reply_history.txt"], "Update Porygon Z state [skip ci]",
+                )
 
+            if feature_requests.flush_if_dirty():
+                _commit_files(["feature_requests.json"], "Update feature requests [skip ci]")
+            if porygon_names.flush_if_dirty():
+                _commit_files(["porygon_names.json"], "Update what Porygon calls father [skip ci]")
+            if porygon_names.flush_if_dirty(subject="porygon"):
+                _commit_files(["porygon_sibling_names.json"], "Update what Z calls Porygon [skip ci]")
+            if z_bits.flush_if_dirty():
+                _commit_files(["z_bits.json"], "Update Z's bits [skip ci]")
             if activity_log.flush_if_dirty():
                 _commit_files(["activity.log"], "Update activity log [skip ci]")
         except Exception as e:

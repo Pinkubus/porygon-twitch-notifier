@@ -5,3 +5,19 @@ quotes_watch_local.log
 # Personality reads on real server members — keep them off a public repo.
 z_user_profiles.json
 _tmp_*
+# Local review-run transcripts — real server messages, not meant for a public repo.
+z_review_runs/
+# Control panel <-> watcher side channel, and the cached member roster (real names).
+z_live_status.json
+z_controls.json
+z_members_cache.json
+*.json.tmp
+# Ties real Discord accounts to real social media handles — keep off a public repo.
+social_profiles.json
+social_pending.json
+social_watch_state.json
+social_post_pending.json
+# !register/!post's own scan cursor — deliberately never committed, so the
+# cloud pass (which never has social features on) can't fast-forward it past
+# a command nothing has actually answered yet. See quotes.py's docstring.
+social_scan_state.json

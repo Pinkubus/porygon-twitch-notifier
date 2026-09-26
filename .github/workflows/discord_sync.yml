@@ -48,7 +48,7 @@ jobs:
 
       - name: Commit updated state
         run: |
-          git add quotes.json quotes_scan_state.json reaction_state.json porygon_z_state.json activity.log
+          git add quotes.json quotes_scan_state.json reaction_state.json porygon_z_state.json feature_requests.json porygon_names.json porygon_sibling_names.json z_bits.json activity.log
           if git diff --cached --quiet; then
             exit 0
           fi

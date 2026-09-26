@@ -38,6 +38,7 @@ jobs:
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
           TWITCH_REFRESH_TOKEN: ${{ secrets.TWITCH_REFRESH_TOKEN }}
           TWITCH_STREAMS_WEBHOOK_URL: ${{ secrets.TWITCH_STREAMS_WEBHOOK_URL }}
+          EXTRA_DISCORD_WEBHOOK_URL: ${{ secrets.EXTRA_DISCORD_WEBHOOK_URL }}
           TWITCH_CHANNELS: ${{ vars.TWITCH_CHANNELS }}
           GH_TOKEN: ${{ secrets.GH_PAT }}
           LOOP_MAX_SECONDS: ${{ github.event.inputs.max_seconds }}
@@ -46,12 +47,11 @@ jobs:
           DISCORD_REACTION_CHANNEL_ID: ${{ vars.DISCORD_REACTION_CHANNEL_ID }}
           DISCORD_REACTION_MESSAGE_ID: ${{ vars.DISCORD_REACTION_MESSAGE_ID }}
           REACTION_ROLE_MAP: ${{ vars.REACTION_ROLE_MAP }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          DISCORD_Z_BOT_TOKEN: ${{ secrets.DISCORD_Z_BOT_TOKEN }}
-          Z_FATHER_USER_ID: ${{ vars.Z_FATHER_USER_ID }}
-          Z_DELICATE_CHANNELS: ${{ vars.Z_DELICATE_CHANNELS }}
-          Z_AUTO_SCORE_THRESHOLD: ${{ vars.Z_AUTO_SCORE_THRESHOLD }}
-          Z_MODEL_COMPOSE: ${{ vars.Z_MODEL_COMPOSE }}
-          Z_MODEL_SCORE: ${{ vars.Z_MODEL_SCORE }}
+          # Porygon Z is deliberately NOT enabled here (no ANTHROPIC_API_KEY) —
+          # the local watcher owns Z with a 10s cursor; running Z on both this
+          # long-running cloud loop and the local watcher caused duplicate
+          # replies whenever a message landed before the state commit synced
+          # between them (same reasoning as discord_sync.yml).
         run: python loop.py
+
 

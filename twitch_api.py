@@ -11,6 +11,7 @@ from typing import Optional
 import requests
 
 import activity_log
+import discord_roles
 
 logger = logging.getLogger("porygon.twitch_api")
 
@@ -98,3 +99,9 @@ def post_live_notification(login: str, stream: dict, avatar_url: str = ""):
         activity_log.log(f"\u274c Twitch: Discord notification failed for {login} ({resp.status_code})")
     else:
         activity_log.log(f"\u2705 Twitch: {login} went live \u2014 Discord notified")
+
+    # Optional second server \u2014 same notification, mirrored via its own
+    # webhook. Best-effort: a failure here never affects the primary post above.
+    extra_webhook_url = os.environ.get("EXTRA_DISCORD_WEBHOOK_URL", "")
+    if extra_webhook_url:
+        discord_roles.post_webhook(extra_webhook_url, embeds=[embed], username=BOT_NAME)
