@@ -6477,3 +6477,7 @@
 [2026-09-26 01:25:35Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 69.3s
 [2026-09-26 01:26:55Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 79.6s
 [2026-09-26 01:26:55Z] 👾 Porygon Z replied (direct summon)
+[2026-09-26 01:27:56Z] 🕰️ Watcher was offline ~3 min — checking for missed jugglez summons since 2026-09-26 01:24 UTC
+[2026-09-26 01:28:49Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 46.7s
+[2026-09-26 01:29:40Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 51.4s
+[2026-09-26 01:29:41Z] 👾 Porygon Z replied (direct summon)
