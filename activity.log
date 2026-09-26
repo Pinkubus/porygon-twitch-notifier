@@ -6471,3 +6471,6 @@
 [2026-09-25 20:32:14Z] ⚠️ Instagram check for @lxzycxlm returned 401 — Instagram may be rate-limiting or blocking this endpoint
 [2026-09-25 22:41:33Z] ⚠️ Instagram check for @turtle.prism returned 401 — Instagram may be rate-limiting or blocking this endpoint
 [2026-09-25 22:41:34Z] ⚠️ Instagram check for @lxzycxlm returned 401 — Instagram may be rate-limiting or blocking this endpoint
+[2026-09-26 01:22:35Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 49.6s
+[2026-09-26 01:23:30Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 54.7s
+[2026-09-26 01:23:30Z] 👾 Porygon Z replied (direct summon)
