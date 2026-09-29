@@ -6544,3 +6544,6 @@
 [2026-09-29 01:16:38Z] ✅ Quote callback reaction added
 [2026-09-29 01:16:39Z] ✅ Quote callback reaction added
 [2026-09-29 01:16:40Z] ✅ Quote callback reaction added
+[2026-09-29 02:37:57Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 37.2s
+[2026-09-29 02:38:51Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 53.8s
+[2026-09-29 02:38:52Z] 👾 Porygon Z replied unprompted
