@@ -418,7 +418,7 @@ def _find_reaction_summons(
                     continue
                 _reaction_checked[key] = count
                 reactor = next(
-                    (u for u in discord_roles.get_reaction_users(channel["id"], msg["id"], emoji_str, token)
+                    (u for u in discord_roles.get_reaction_users(channel["id"], msg["id"], emoji_str, token) or []
                      if u in summoners),
                     None,
                 )
@@ -472,7 +472,7 @@ def _backfill_missed_reaction_summons(
                     continue
                 emoji_str = f"{emoji['name']}:{emoji['id']}"
                 reactor = next(
-                    (u for u in discord_roles.get_reaction_users(channel["id"], msg["id"], emoji_str, token)
+                    (u for u in discord_roles.get_reaction_users(channel["id"], msg["id"], emoji_str, token) or []
                      if u in summoners),
                     None,
                 )

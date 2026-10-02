@@ -527,8 +527,15 @@ def remove_user_reaction(channel_id: str, message_id: str, emoji: str, user_id: 
     return True
 
 
-def get_reaction_users(channel_id: str, message_id: str, emoji: str, token: str) -> list[str]:
-    """Return user IDs who reacted with `emoji`, paginating past 100 if needed."""
+def get_reaction_users(channel_id: str, message_id: str, emoji: str, token: str) -> Optional[list[str]]:
+    """User IDs who reacted with `emoji`, paginating past 100 if needed.
+
+    None (not []) on a failed fetch — a transient error here must never
+    read as "zero reactions" to a caller that diffs against last-known
+    state, or it looks exactly like everyone un-reacted at once. That
+    includes a failure partway through pagination: a partial list is just
+    as wrong a "ground truth" as an empty one, since whoever didn't make it
+    into the partial page would equally look like they un-reacted."""
     users: list[str] = []
     after = None
     while True:
@@ -542,7 +549,7 @@ def get_reaction_users(channel_id: str, message_id: str, emoji: str, token: str)
         )
         if resp.status_code != 200:
             logger.warning(f"Failed to fetch reactions {emoji} {resp.status_code}: {resp.text[:200]}")
-            break
+            return None
         page = resp.json()
         users.extend(u["id"] for u in page)
         if len(page) < 100:

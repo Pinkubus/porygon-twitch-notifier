@@ -54,7 +54,17 @@ def sync(bot_user_id: str) -> bool:
     changed = False
 
     for emoji, role_id in role_map.items():
-        current = set(discord_roles.get_reaction_users(channel_id, message_id, emoji, token))
+        fetched = discord_roles.get_reaction_users(channel_id, message_id, emoji, token)
+        if fetched is None:
+            # A failed fetch is not "nobody reacted" — treating it as the
+            # latter is exactly how a transient API hiccup turned into a
+            # mass revoke-then-regrant of everyone holding this role, twice
+            # a day, for as long as this went unnoticed. Skip this emoji
+            # entirely; state stays put and it's retried next cycle.
+            logger.warning(f"Skipping role sync for {emoji} this cycle — reaction fetch failed")
+            activity_log.log(f"⚠️ Couldn't fetch {emoji} reactions — role sync skipped this cycle")
+            continue
+        current = set(fetched)
         current.discard(bot_user_id)
         previous = set(state.get(emoji, []))
         # Only settle users whose grant/revoke actually succeeded — leave

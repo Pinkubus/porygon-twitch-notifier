@@ -31,7 +31,16 @@ def main() -> int:
     reactors_by_emoji: dict[str, set[str]] = {}
     expected_roles: dict[str, set[str]] = {}  # user_id -> role_ids they should have
     for emoji, role_id in role_map.items():
-        reactors = set(discord_roles.get_reaction_users(channel_id, message_id, emoji, token))
+        fetched = discord_roles.get_reaction_users(channel_id, message_id, emoji, token)
+        if fetched is None:
+            # This script's whole job is treating live reactions as ground
+            # truth and revoking anything that disagrees with them — a
+            # failed fetch read as "nobody reacted" would make it do exactly
+            # the damage it exists to repair. Abort rather than reconcile
+            # against a wrong ground truth; just re-run once the API's happy.
+            print(f"Failed to fetch reactions for {emoji} — aborting without changing anything.")
+            return 1
+        reactors = set(fetched)
         reactors.discard(bot_user_id)
         reactors_by_emoji[emoji] = reactors
         for user_id in reactors:
