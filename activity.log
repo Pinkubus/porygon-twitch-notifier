@@ -7096,3 +7096,8 @@
 [2026-10-01 19:18:18Z] ✅ Granted role 🤝 to 195284975183069184
 [2026-10-01 19:18:18Z] ✅ Granted role 🤝 to 193880505521930240
 [2026-10-01 19:18:18Z] ✅ Granted role 🤝 to 234479235551592448
+[2026-10-02 00:06:14Z] ⚠️ Couldn't fetch 🌸 reactions — role sync skipped this cycle
+[2026-10-02 00:06:14Z] ✅ Revoked role 🌸 from userB
+[2026-10-02 00:06:14Z] ✅ Revoked role 🌸 from userA
+[2026-10-02 00:08:46Z] ⚠️ Instagram check for @turtle.prism returned 401 — Instagram may be rate-limiting or blocking this endpoint
+[2026-10-02 00:08:46Z] ⚠️ Instagram check for @lxzycxlm returned 401 — Instagram may be rate-limiting or blocking this endpoint
