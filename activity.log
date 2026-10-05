@@ -7104,3 +7104,17 @@
 [2026-10-02 18:09:32Z] ✅ Twitch: erodite went live — Discord notified
 [2026-10-03 22:43:10Z] ⚠️ Instagram check for @turtle.prism returned 401 — Instagram may be rate-limiting or blocking this endpoint
 [2026-10-03 22:43:10Z] ⚠️ Instagram check for @lxzycxlm returned 401 — Instagram may be rate-limiting or blocking this endpoint
+[2026-10-05 06:25:09Z] 🕰️ Watcher was offline ~1319 min — checking for missed jugglez summons since 2026-10-04 08:25 UTC
+[2026-10-05 06:27:02Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 61.9s
+[2026-10-05 06:27:46Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 44.0s
+[2026-10-05 06:27:47Z] 👾 Porygon Z reacted instead of replying
+[2026-10-05 06:28:42Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 39.0s
+[2026-10-05 06:29:22Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 40.6s
+[2026-10-05 06:29:23Z] 👾 Porygon Z replied unprompted
+[2026-10-05 06:30:28Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 55.7s
+[2026-10-05 06:31:13Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 45.8s
+[2026-10-05 06:33:01Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 66.3s
+[2026-10-05 06:33:39Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 38.6s
+[2026-10-05 06:33:40Z] 👾 Porygon Z replied unprompted
+[2026-10-05 06:34:27Z] ⚠️ Instagram check for @turtle.prism returned 401 — Instagram may be rate-limiting or blocking this endpoint
+[2026-10-05 06:34:28Z] ⚠️ Instagram check for @lxzycxlm returned 401 — Instagram may be rate-limiting or blocking this endpoint
