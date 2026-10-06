@@ -7123,3 +7123,17 @@
 [2026-10-06 04:46:42Z] ⚠️ Couldn't fetch 🎨 reactions — role sync skipped this cycle
 [2026-10-06 05:04:44Z] ⚠️ Couldn't fetch 🎬 reactions — role sync skipped this cycle
 [2026-10-06 05:12:18Z] ⚠️ Couldn't fetch 🤝 reactions — role sync skipped this cycle
+[2026-10-05 06:34:46Z] 🕰️ Watcher was offline ~9 min — checking for missed jugglez summons since 2026-10-05 06:25 UTC
+[2026-10-06 14:49:40Z] 🕰️ Watcher was offline ~1934 min — checking for missed jugglez summons since 2026-10-05 06:34 UTC
+[2026-10-06 14:51:30Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 46.3s
+[2026-10-06 14:52:25Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 55.3s
+[2026-10-06 14:54:07Z] ⚠️ Instagram check for @turtle.prism returned 429: <!DOCTYPE html>
+<html lang="en" class="no-js logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta http-e
+[2026-10-06 14:54:07Z] ⚠️ Instagram check for @lxzycxlm returned 429: <!DOCTYPE html>
+<html lang="en" class="no-js logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta http-e
