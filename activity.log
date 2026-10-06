@@ -7138,3 +7138,6 @@
         <meta charset="utf-8">
         <meta http-e
 [2026-10-06 14:54:24Z] 🕰️ Watcher was offline ~4 min — checking for missed jugglez summons since 2026-10-06 14:49 UTC
+[2026-10-06 15:31:07Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 64.4s
+[2026-10-06 15:32:16Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 68.8s
+[2026-10-06 15:32:17Z] 👾 Porygon Z reacted instead of replying
