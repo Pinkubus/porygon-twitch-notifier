@@ -7163,3 +7163,17 @@
 [2026-10-06 19:30:54Z] ⚠️ Couldn't fetch 🎮 reactions — role sync skipped this cycle
 [2026-10-07 02:17:03Z] ⚠️ Couldn't fetch 🃏 reactions — role sync skipped this cycle
 [2026-10-07 15:03:10Z] ✅ Twitch: erodite went live — Discord notified
+[2026-10-07 23:04:50Z] 🕰️ Watcher was offline ~999 min — checking for missed jugglez summons since 2026-10-07 06:25 UTC
+[2026-10-07 23:09:21Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 58.5s
+[2026-10-07 23:09:59Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 37.9s
+[2026-10-07 23:10:01Z] 👾 Porygon Z replied (jugglez)
+[2026-10-07 23:10:10Z] ⚠️ Instagram check for @turtle.prism returned 429: <!DOCTYPE html>
+<html lang="en" class="no-js logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta http-e
+[2026-10-07 23:10:11Z] ⚠️ Instagram check for @lxzycxlm returned 429: <!DOCTYPE html>
+<html lang="en" class="no-js logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta http-e
