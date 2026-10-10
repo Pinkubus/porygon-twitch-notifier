@@ -7197,3 +7197,19 @@
 [2026-10-08 18:08:48Z] ✅ Twitch: erodite went live — Discord notified
 [2026-10-08 21:55:49Z] ⚠️ Couldn't fetch 💻 reactions — role sync skipped this cycle
 [2026-10-09 17:02:15Z] ✅ Twitch: erodite went live — Discord notified
+[2026-10-10 03:57:37Z] 🕰️ Watcher was offline ~1269 min — checking for missed jugglez summons since 2026-10-09 06:48 UTC
+[2026-10-10 03:59:18Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 42.8s
+[2026-10-10 04:00:18Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 60.0s
+[2026-10-10 04:02:28Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 67.2s
+[2026-10-10 04:03:34Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 66.4s
+[2026-10-10 04:03:35Z] 👾 Porygon Z replied (!z)
+[2026-10-10 04:04:28Z] ⚠️ Instagram check for @turtle.prism returned 429: <!DOCTYPE html>
+<html lang="en" class="no-js logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta http-e
+[2026-10-10 04:04:29Z] ⚠️ Instagram check for @lxzycxlm returned 429: <!DOCTYPE html>
+<html lang="en" class="no-js logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta http-e
