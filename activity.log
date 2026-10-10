@@ -7215,3 +7215,6 @@
         <meta http-e
 [2026-10-10 04:04:45Z] 🕰️ Watcher was offline ~7 min — checking for missed jugglez summons since 2026-10-10 03:57 UTC
 [2026-10-10 17:02:03Z] ✅ Twitch: erodite went live — Discord notified
+[2026-10-10 18:49:45Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 80.3s
+[2026-10-10 18:50:38Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 53.2s
+[2026-10-10 18:50:39Z] 👾 Porygon Z replied (!z)
