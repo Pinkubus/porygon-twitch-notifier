@@ -7343,3 +7343,5 @@
 [2026-10-16 01:04:37Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 48.5s
 [2026-10-16 01:05:17Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 39.8s
 [2026-10-16 01:05:18Z] 👾 Porygon Z replied (direct summon)
+[2026-10-16 14:38:46Z] ⚠️ Couldn't fetch 🌸 reactions — role sync skipped this cycle
+[2026-10-16 14:38:58Z] ⚠️ Couldn't fetch 🃏 reactions — role sync skipped this cycle
