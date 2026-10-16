@@ -7309,3 +7309,23 @@
 [2026-10-14 15:55:23Z] 👾 Porygon Z replied (direct summon)
 [2026-10-15 05:14:32Z] ⚠️ Couldn't fetch 🎵 reactions — role sync skipped this cycle
 [2026-10-15 20:05:39Z] ⚠️ Couldn't fetch 🎨 reactions — role sync skipped this cycle
+[2026-10-16 00:37:49Z] 🕰️ Watcher was offline ~599 min — checking for missed jugglez summons since 2026-10-15 14:37 UTC
+[2026-10-16 00:38:57Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 64.6s
+[2026-10-16 00:39:43Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 46.3s
+[2026-10-16 00:39:44Z] 👾 Porygon Z replied (!z)
+[2026-10-16 00:41:18Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 90.2s
+[2026-10-16 00:42:35Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 76.7s
+[2026-10-16 00:42:35Z] 👾 Porygon Z replied (!z)
+[2026-10-16 00:44:43Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 40.0s
+[2026-10-16 00:45:24Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 41.1s
+[2026-10-16 00:45:25Z] 👾 Porygon Z replied (jugglez)
+[2026-10-16 00:45:38Z] ⚠️ Instagram check for @turtle.prism returned 429: <!DOCTYPE html>
+<html lang="en" class="no-js logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta http-e
+[2026-10-16 00:45:38Z] ⚠️ Instagram check for @lxzycxlm returned 429: <!DOCTYPE html>
+<html lang="en" class="no-js logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta http-e
