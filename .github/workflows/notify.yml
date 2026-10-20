@@ -37,6 +37,7 @@ jobs:
         env:
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
           TWITCH_REFRESH_TOKEN: ${{ secrets.TWITCH_REFRESH_TOKEN }}
+          TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
           TWITCH_STREAMS_WEBHOOK_URL: ${{ secrets.TWITCH_STREAMS_WEBHOOK_URL }}
           EXTRA_DISCORD_WEBHOOK_URL: ${{ secrets.EXTRA_DISCORD_WEBHOOK_URL }}
           TWITCH_CHANNELS: ${{ vars.TWITCH_CHANNELS }}

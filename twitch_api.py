@@ -45,6 +45,24 @@ def refresh_access_token(client_id: str, refresh_token: str) -> Optional[dict]:
     return resp.json()
 
 
+def get_app_access_token(client_id: str, client_secret: str) -> Optional[str]:
+    """Client-credentials (app) token — needs a Confidential client's secret,
+    but no user pairing and no refresh token, so it never needs re-running
+    authorize.py. Enough for /streams and /users, which is all we call."""
+    resp = requests.post(TWITCH_TOKEN_URL, data={
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "grant_type": "client_credentials",
+    }, timeout=10)
+    if resp.status_code != 200:
+        logger.error(
+            f"Twitch app token request failed {resp.status_code}: {resp.text[:200]} "
+            "— check the TWITCH_CLIENT_SECRET secret matches the app in the Twitch dev console."
+        )
+        return None
+    return resp.json()["access_token"]
+
+
 def get_live_streams(client_id: str, token: str, channels: list[str]) -> tuple[dict, int]:
     """Return ({login: stream_info}, http_status)."""
     params = [("user_login", c) for c in channels]

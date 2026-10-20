@@ -139,9 +139,13 @@ def main() -> int:
 
     client_id = os.environ.get("TWITCH_CLIENT_ID", "")
     refresh_token = os.environ.get("TWITCH_REFRESH_TOKEN", "")
-    twitch_configured = bool(client_id and refresh_token)
+    # A client secret means app tokens (never expire in a way that needs a
+    # human); the refresh-token path is the old 30-day re-pair fallback.
+    client_secret = os.environ.get("TWITCH_CLIENT_SECRET", "")
+    twitch_configured = bool(client_id and (client_secret or refresh_token))
     if not twitch_configured:
-        logger.warning("TWITCH_CLIENT_ID / TWITCH_REFRESH_TOKEN not set — Twitch live-checks disabled this run")
+        logger.warning("TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET (or TWITCH_REFRESH_TOKEN) not set — "
+                       "Twitch live-checks disabled this run")
 
     # Twitch auth state is tracked separately from the loop so a bad/expired
     # refresh token only disables live-notifications, instead of exiting the
@@ -152,15 +156,18 @@ def main() -> int:
 
     def try_refresh_twitch(alert_on_failure: bool) -> bool:
         nonlocal access_token, refresh_token, twitch_enabled, twitch_retry_at
-        refreshed = _refresh(client_id, refresh_token)
+        if client_secret:
+            app_token = twitch_api.get_app_access_token(client_id, client_secret)
+            refreshed = (app_token, refresh_token) if app_token else None
+            failure = "Twitch rejected TWITCH_CLIENT_SECRET — check it matches the app in the Twitch dev console."
+        else:
+            refreshed = _refresh(client_id, refresh_token)
+            failure = "Twitch refresh token is invalid — run authorize.py and update TWITCH_REFRESH_TOKEN."
         if not refreshed:
             twitch_enabled = False
             twitch_retry_at = time.time() + _TWITCH_RETRY_SECONDS
             if alert_on_failure:
-                _alert_discord(
-                    "Twitch refresh token is invalid — run authorize.py and update TWITCH_REFRESH_TOKEN. "
-                    "Live-notifications are paused; quotes/reaction-roles keep running."
-                )
+                _alert_discord(f"{failure} Live-notifications are paused; quotes/reaction-roles keep running.")
             return False
         access_token, refresh_token = refreshed
         twitch_enabled = True
