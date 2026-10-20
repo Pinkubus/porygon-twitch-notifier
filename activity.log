@@ -7582,3 +7582,6 @@
 [2026-10-20 20:46:50Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 66.3s
 [2026-10-20 20:47:25Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 35.4s
 [2026-10-20 20:47:26Z] 👾 Porygon Z replied (!z)
+[2026-10-20 20:55:26Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 60.2s
+[2026-10-20 20:56:33Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 67.5s
+[2026-10-20 20:56:34Z] 👾 Porygon Z replied (direct summon)
