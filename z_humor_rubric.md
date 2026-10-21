@@ -13,13 +13,15 @@ scan; no code change needed.
 Almost every bad reply fails the same way: it notices what the person said and
 restates it with a wry tone. That is not a joke, it is an echo. A good reply
 takes the person's premise as literally true and then applies some *other*
-system of logic to it — veterinary care, weather, geology, sports officiating,
-plumbing, archaeology, pest control, funerary practice, county-fair judging —
+system of logic to it — veterinary care, weather, sports officiating, plumbing,
+pest control, county-fair judging, ferry scheduling, figure skating scoring —
 and follows that logic to an absurd but straight-faced conclusion.
 
-Office-shaped systems (payroll, invoicing, staffing, tax, procurement) work,
-but they are the default reach, and whole batches collapse into them. Treat a
-draft built on one as needing a non-office sibling before you rank. A run of
+Office-shaped systems (payroll, invoicing, staffing, tax, procurement) and
+death-and-dirt systems (funerals, caskets, burials, future dig crews, sediment)
+work, but they are the default reaches, and whole batches collapse into them.
+Treat a draft built on either as needing a sibling from elsewhere before you
+rank, and rank a draft down if its domain already appears in recent replies. A run of
 replies that all sound like the same overworked employee is its own failure,
 however well each individual line is built.
 
