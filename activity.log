@@ -7585,3 +7585,16 @@
 [2026-10-20 20:55:26Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 60.2s
 [2026-10-20 20:56:33Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 67.5s
 [2026-10-20 20:56:34Z] 👾 Porygon Z replied (direct summon)
+[2026-10-21 15:05:34Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 89.1s
+[2026-10-21 15:06:31Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 57.9s
+[2026-10-21 15:06:32Z] 👾 Porygon Z replied (direct summon)
+[2026-10-21 15:06:59Z] ⚠️ Instagram check for @turtle.prism returned 429: <!DOCTYPE html>
+<html lang="en" class="no-js logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta http-e
+[2026-10-21 15:07:00Z] ⚠️ Instagram check for @lxzycxlm returned 429: <!DOCTYPE html>
+<html lang="en" class="no-js logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta http-e
