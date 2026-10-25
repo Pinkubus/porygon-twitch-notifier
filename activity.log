@@ -7638,3 +7638,6 @@
 [2026-10-24 20:55:29Z] ✅ Twitch: erodite went live — Discord notified
 [2026-10-24 21:16:13Z] ✅ Twitch: erodite went live — Discord notified
 [2026-10-25 17:01:51Z] ✅ Twitch: erodite went live — Discord notified
+[2026-10-25 22:05:25Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 59.3s
+[2026-10-25 22:06:05Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 40.6s
+[2026-10-25 22:06:06Z] 👾 Porygon Z reacted instead of replying
