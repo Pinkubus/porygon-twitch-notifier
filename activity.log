@@ -7641,3 +7641,13 @@
 [2026-10-25 22:05:25Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 59.3s
 [2026-10-25 22:06:05Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 40.6s
 [2026-10-25 22:06:06Z] 👾 Porygon Z reacted instead of replying
+[2026-10-26 07:56:39Z] ⚠️ Instagram check for @turtle.prism returned 429: <!DOCTYPE html>
+<html lang="en" class="no-js logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta http-e
+[2026-10-26 07:56:40Z] ⚠️ Instagram check for @lxzycxlm returned 429: <!DOCTYPE html>
+<html lang="en" class="no-js logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta http-e
