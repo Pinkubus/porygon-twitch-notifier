@@ -7759,3 +7759,8 @@
         <meta http-e
 [2026-11-04 02:21:09Z] ⚠️ Couldn't fetch 🐈 reactions — role sync skipped this cycle
 [2026-11-04 03:10:02Z] ⚠️ Couldn't fetch 🎮 reactions — role sync skipped this cycle
+[2026-11-04 05:31:30Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 90.3s
+[2026-11-04 05:33:01Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 90.3s
+[2026-11-04 05:34:09Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 68.0s
+[2026-11-04 05:34:56Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 47.7s
+[2026-11-04 05:34:57Z] 👾 Porygon Z replied (direct summon)
