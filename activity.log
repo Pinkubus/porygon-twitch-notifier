@@ -7770,3 +7770,15 @@
 [2026-11-10 15:55:25Z] ⚠️ Couldn't fetch 🃏 reactions — role sync skipped this cycle
 [2026-11-10 23:37:52Z] ✅ Twitch: erodite went live — Discord notified
 [2026-11-11 08:49:27Z] ⚠️ Couldn't fetch 🎬 reactions — role sync skipped this cycle
+[2026-11-12 08:00:26Z] 🕰️ Watcher was offline ~11445 min — checking for missed jugglez summons since 2026-11-04 09:14 UTC
+[2026-11-12 08:04:14Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 90.3s
+[2026-11-12 08:05:27Z] ⚠️ Instagram check for @turtle.prism returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
+[2026-11-12 08:05:28Z] ⚠️ Instagram check for @lxzycxlm returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
