@@ -142,6 +142,26 @@ How a reply gets made, in one API call whose JSON keys are answered in order:
    often than on the idea.
 5. **Verdict** — POST or HOLD, judged on the line it would actually post.
 
+**The batch pipeline (`z_brain.compose_scored`)** is what `!z`, direct
+summons and the unprompted scan actually run:
+
+1. **Register plan.** The batch (`Z_COMMAND_MAX_ATTEMPTS` /
+   `Z_AUTO_DRAFT_COUNT`, default 12) is split into groups: Z's default voice,
+   plus two different costumes. The costume share follows the Tone shift
+   slider, capped so the default voice keeps at least a third
+   (`Z_BATCH_COSTUME_SHARE` pins it). Each group gets its own system prompt
+   and speech-clip roll, and all groups draft in parallel. Before this, one
+   costume roll decided the whole batch.
+2. **Shape mix.** Each batch has to include advice, self-revelation and
+   escalation (the three moves). At most a third can use the
+   "[agency] did X, Y still Z" template. Each batch also gets six borrowed
+   systems sampled fresh from a pool, instead of a fixed list the model
+   walked top to bottom.
+3. **Score** everything in one batched judge call.
+4. **Punch-up.** The best `Z_PUNCHUP_COUNT` (default 4) go back once with the
+   judge's own fix note, keeping their register. The revisions are scored and
+   compete with the originals.
+
 On top of that, every composed line is judged again on the rubric's 1-7
 scale (`z_brain.score_reply`) before it's used. `!z` and a direct summon
 must answer regardless, so they keep composing fresh attempts — a full
@@ -172,14 +192,14 @@ Haiku call (`NAME_EXTRACT_MODEL`) to pull the phrase out.
 
 ### Registers
 
-Most replies use Z's default voice. Roughly a quarter wear a costume instead,
+Each batch drafts mostly in Z's default voice, with a share of drafts in two costumes,
 picked by weight in `_TONE_NOTES` in `z_brain.py`:
 
-| Register | Roughly | What it is |
+| Register | Weight | What it is |
 |---|---|---|
-| pitch | 7.5% | A corrupted advertisement that gained opinions. Bracketed mail-merge slots, erratic caps and bold, hard-sell vocabulary. |
-| showman | 7.5% | A game-show host broadcasting to a studio audience that isn't there. Announcer volume, ratings and sponsor talk, relentless cheer over something bleak. |
-| menace / chirp / snark / dad | ~2.6% each | The older four. |
+| pitch | weighted 3 | A corrupted advertisement that gained opinions. Bracketed mail-merge slots, erratic caps and bold, hard-sell vocabulary. |
+| showman | weighted 3 | A game-show host broadcasting to a studio audience that isn't there. Announcer volume, ratings and sponsor talk, relentless cheer over something bleak. |
+| menace / chirp / snark / dad | weighted 1 each | The older four. |
 
 The two loud ones override the usual restraint about capitals, and are the
 only registers that use markdown. `glitchify` deliberately skips any letter
@@ -217,6 +237,20 @@ start his style over. Caption junk (`[ __ ]`,
 `>>`, `[music]`) is stripped first. It's skipped in delicate channels. The
 folder is read fresh on every call, so you can add or remove files without
 restarting.
+
+### Test Chat (panel tab)
+
+The panel's **Test Chat** tab runs the same `compose_scored` pipeline against
+a private conversation. Nothing posts, and nothing is recorded to reply
+history or the style note. It shows the chosen line, its judge score,
+register and stage, plus every other draft with its score and fix note.
+Speech clips can be forced on or off for A/B testing.
+
+Each reply has **1–7 rating buttons** and an optional "why". A rating is
+saved to `z_owner_ratings.json` (gitignored, since it holds your private test messages) and appended to the rubric as an *Owner ratings from Test Chat* table
+of extra calibration anchors, keeping the newest `Z_OWNER_RATINGS_MAX`
+(default 30). The judge reads the rubric fresh on every call, so your ratings
+start pulling its taste toward yours right away.
 
 ### Tuning it
 

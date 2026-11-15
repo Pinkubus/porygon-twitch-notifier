@@ -551,6 +551,8 @@ class Panel(tk.Tk):
         tabs.add(body, text="Control")
         planner = tk.Frame(tabs, bg=BG, pady=12)
         tabs.add(planner, text="Poll Planner")
+        chat = tk.Frame(tabs, bg=BG, pady=12)
+        tabs.add(chat, text="Test Chat")
         body.columnconfigure(0, weight=0, minsize=330)
         body.columnconfigure(1, weight=0, minsize=430)
         body.columnconfigure(2, weight=1)
@@ -565,6 +567,7 @@ class Panel(tk.Tk):
         self._build_features(body).grid(row=1, column=0, columnspan=3, sticky="ew", pady=(12, 0))
         self._build_manual(body).grid(row=2, column=0, columnspan=3, sticky="ew", pady=(12, 0))
         self._build_planner(planner)
+        self._build_chat(chat)
 
         self._rebuild_member_rows()
         self._load_controls_into_widgets()
@@ -1666,6 +1669,237 @@ class Panel(tk.Tk):
     # Draft a poll with Claude, edit it, and schedule it for a channel. The
     # panel only writes scheduled_polls.json; the watcher posts each one when
     # its time comes (scheduled_polls.post_due), so the panel can be closed.
+    # ---- test chat ----
+    # A private sandbox for Z: same compose -> score pipeline as a real
+    # summon (persona, speech-training clips, running style note, rubric
+    # judging), but nothing posts to Discord and nothing is recorded — no
+    # reply history, no style-note update, no names. The chat below is the
+    # only "channel" he sees.
+    _CHAT_SPEECH_MODES = ("Normal", "Always", "Off")
+
+    def _build_chat(self, master):
+        master.columnconfigure(0, weight=1)
+        master.rowconfigure(0, weight=1)
+        outer, body, self.chat_note = _card(master, "TALK TO Z (TEST ONLY — NOTHING POSTS)")
+        outer.grid(row=0, column=0, sticky="nsew")
+        self._chat_history: list[tuple[str, str]] = []  # (speaker, text)
+        self._chat_z_replies: list[str] = []
+        self._chat_busy = False
+
+        opts = tk.Frame(body, bg=PANEL)
+        opts.pack(fill="x")
+        tk.Label(opts, text="Speech clips", font=FONT, fg=MUTED, bg=PANEL).pack(side="left")
+        self._chat_speech = tk.StringVar(value="Normal")
+        for mode in self._CHAT_SPEECH_MODES:
+            tk.Radiobutton(
+                opts, text=mode, value=mode, variable=self._chat_speech,
+                font=FONT, fg=TEXT, bg=PANEL, selectcolor=PANEL_HI,
+                activebackground=PANEL, activeforeground=TEXT, highlightthickness=0,
+            ).pack(side="left", padx=(8, 0))
+        self._chat_as_father = tk.BooleanVar(value=True)
+        tk.Checkbutton(
+            opts, text="I'm father", variable=self._chat_as_father,
+            font=FONT, fg=TEXT, bg=PANEL, selectcolor=PANEL_HI,
+            activebackground=PANEL, activeforeground=TEXT, highlightthickness=0,
+        ).pack(side="left", padx=(20, 0))
+        self._chat_show_all = tk.BooleanVar(value=True)
+        tk.Checkbutton(
+            opts, text="Show all drafts + scores", variable=self._chat_show_all,
+            font=FONT, fg=TEXT, bg=PANEL, selectcolor=PANEL_HI,
+            activebackground=PANEL, activeforeground=TEXT, highlightthickness=0,
+        ).pack(side="left", padx=(12, 0))
+        _button(opts, "Clear chat", self._chat_clear, color=PANEL_HI).pack(side="right")
+
+        log_frame = tk.Frame(body, bg=PANEL)
+        log_frame.pack(fill="both", expand=True, pady=(10, 0))
+        self.chat_log = tk.Text(
+            log_frame, font=("Segoe UI", 11), fg=TEXT, bg=PANEL_HI, relief="flat",
+            wrap="word", padx=12, pady=10, state="disabled", cursor="arrow",
+        )
+        scroll = ttk.Scrollbar(log_frame, orient="vertical", command=self.chat_log.yview,
+                               style="Z.Vertical.TScrollbar")
+        self.chat_log.configure(yscrollcommand=scroll.set)
+        scroll.pack(side="right", fill="y")
+        self.chat_log.pack(side="left", fill="both", expand=True)
+        self.chat_log.tag_configure("you", foreground=YELLOW, font=("Segoe UI Semibold", 11))
+        self.chat_log.tag_configure("z", foreground=PINK, font=("Segoe UI Semibold", 11))
+        self.chat_log.tag_configure("meta", foreground=DIM, font=FONT_SM)
+        self.chat_log.tag_configure("draft", foreground=MUTED, font=FONT, lmargin1=24, lmargin2=24)
+        self.chat_log.tag_configure("err", foreground=RED)
+
+        entry_row = tk.Frame(body, bg=PANEL)
+        entry_row.pack(fill="x", pady=(10, 0))
+        self.chat_entry = tk.Text(
+            entry_row, height=3, font=("Segoe UI", 11), fg=TEXT, bg=PANEL_HI,
+            insertbackground=TEXT, relief="flat", wrap="word", padx=8, pady=6,
+        )
+        self.chat_entry.pack(side="left", fill="x", expand=True)
+        self.chat_entry.bind("<Return>", self._chat_on_enter)
+        self.chat_send_btn = _button(entry_row, "Send", self._chat_send, color=PINK_DEEP)
+        self.chat_send_btn.pack(side="left", padx=(8, 0), fill="y")
+        tk.Label(body, text="Enter sends, Shift+Enter for a new line. Each message costs a real "
+                 "compose + score call, same as a !z, and takes a minute or two.", font=FONT_SM, fg=DIM, bg=PANEL,
+                 anchor="w").pack(fill="x", pady=(4, 0))
+
+    def _chat_on_enter(self, event):
+        if event.state & 0x0001:  # Shift held: newline
+            return None
+        self._chat_send()
+        return "break"
+
+    def _chat_write(self, text: str, tag: str = "") -> None:
+        self.chat_log.config(state="normal")
+        self.chat_log.insert("end", text, tag)
+        self.chat_log.config(state="disabled")
+        self.chat_log.see("end")
+
+    def _chat_clear(self):
+        if self._chat_busy:
+            return
+        self._chat_history.clear()
+        self._chat_z_replies.clear()
+        self.chat_log.config(state="normal")
+        self.chat_log.delete("1.0", "end")
+        self.chat_log.config(state="disabled")
+        self.chat_note.config(text="", fg=MUTED)
+
+    def _chat_name(self) -> str:
+        if self._chat_as_father.get() and z_brain.FATHER_USER_ID:
+            return self.members.get(z_brain.FATHER_USER_ID) or "father"
+        return "tester"
+
+    def _chat_send(self):
+        text = self.chat_entry.get("1.0", "end").strip()
+        if not text or self._chat_busy:
+            return
+        self.chat_entry.delete("1.0", "end")
+        name = self._chat_name()
+        self._chat_write(f"{name}\n", "you")
+        self._chat_write(f"{text}\n\n")
+        self._chat_history.append((name, text))
+        self._chat_busy = True
+        self.chat_send_btn.config(state="disabled")
+        self.chat_note.config(text="Z is drafting… (a minute or two)", fg=YELLOW)
+
+        author_id = z_brain.FATHER_USER_ID if self._chat_as_father.get() and z_brain.FATHER_USER_ID else "panel-test"
+        history = list(self._chat_history)
+        recent = porygon_z._load_recent_replies(porygon_z.RECENT_REPLIES_LIMIT) + self._chat_z_replies[-20:]
+        mode = self._chat_speech.get()
+
+        def work():
+            try:
+                result = self._chat_compose(history, name, text, author_id, recent, mode)
+                self.after(0, lambda: self._chat_done(result, None))
+            except Exception as e:
+                error = str(e) or type(e).__name__
+                self.after(0, lambda: self._chat_done(None, error))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    @staticmethod
+    def _chat_compose(history, name, text, author_id, recent, mode) -> dict:
+        """Runs off the UI thread. The panel is its own process, so swapping
+        z_brain's speech hook here can't touch the live watcher."""
+        lines = [f"{who}: {said}" for who, said in history[:-1][-20:]]
+        lines.append(f">>> {name}: {text}")
+        context = "\n".join(lines)
+        target = {"id": "0", "content": text, "author": {"id": author_id, "username": name, "global_name": name}}
+
+        clips: list[str] = []
+        original = z_brain._maybe_speech_note
+        rate = z_brain._SPEECH_RATE
+
+        def spy():
+            note = original()
+            clips.append("blend" if "--- source B ---" in note else "clip" if note else "none")
+            return note
+
+        z_brain._maybe_speech_note = spy
+        z_brain._SPEECH_RATE = {"Always": 1.0, "Off": 0.0}.get(mode, rate)
+        try:
+            ranked = z_brain.compose_scored(
+                context, target, "test-chat", 0, {author_id},
+                z_brain.COMMAND_MAX_ATTEMPTS, recent_replies=recent,
+            )
+        finally:
+            z_brain._maybe_speech_note = original
+            z_brain._SPEECH_RATE = rate
+        if not ranked:
+            raise RuntimeError("no drafts came back (API trouble? check the log)")
+        used = [c for c in clips if c != "none"]
+        clip_txt = f"{len(used)} of {len(clips)} prompts had a clip" if clips else "none"
+        return {"ranked": ranked, "clip": clip_txt, "message": text}
+
+    def _chat_done(self, result, error):
+        self._chat_busy = False
+        self.chat_send_btn.config(state="normal")
+        if error:
+            self._chat_write(f"(failed: {error})\n\n", "err")
+            self.chat_note.config(text="failed", fg=RED)
+            return
+        ranked = result["ranked"]
+        best = ranked[0]
+        line, score = best["line"], best["score"]
+        self._chat_history.append(("Porygon Z", line))
+        self._chat_z_replies.append(line)
+        self._chat_write("Porygon Z\n", "z")
+        self._chat_write(f"{line}\n")
+        score_txt = f"{score:g}" if score is not None else "?"
+        punched = sum(1 for r in ranked if r["stage"] == "punch-up")
+        self._chat_write(
+            f"judge {score_txt} · {best['register']} · {best['stage']}"
+            f" · speech: {result['clip']}\n", "meta",
+        )
+        self._chat_rating_row(result["message"], line)
+        if self._chat_show_all.get() and len(ranked) > 1:
+            for r in ranked[1:]:
+                st = f"{r['score']:g}" if r["score"] is not None else "?"
+                tag = f"{r['register']}" + (", punched up" if r["stage"] == "punch-up" else "")
+                self._chat_write(
+                    f"[{st}] ({tag}) {r['line']}" + (f"  — fix: {r['fix']}" if r.get("fix") else "") + "\n",
+                    "draft",
+                )
+        self._chat_write("\n")
+        self.chat_note.config(
+            text=f"best of {len(ranked)} ({punched} punched up) · judge {score_txt}", fg=MUTED,
+        )
+
+    def _chat_rating_row(self, message: str, line: str):
+        """Your own 1-7 for this reply. Saved into the rubric's calibration
+        anchors, so the judge learns your taste over time."""
+        row = tk.Frame(self.chat_log, bg=PANEL_HI)
+        tk.Label(row, text="your rating:", font=FONT_SM, fg=MUTED, bg=PANEL_HI).pack(side="left")
+        why = tk.Entry(row, font=FONT_SM, fg=TEXT, bg=PANEL, insertbackground=TEXT,
+                       relief="flat", width=34)
+        buttons = []
+
+        def rate(n):
+            try:
+                z_brain.add_owner_rating(message, line, n, why.get().strip())
+            except Exception as e:
+                status.config(text=f"save failed: {e}", fg=RED)
+                return
+            for b in buttons:
+                b.destroy()
+            why.destroy()
+            status.config(text=f"rated {n} — saved to rubric", fg=PINK)
+
+        for n in range(1, 8):
+            b = tk.Button(row, text=str(n), command=lambda n=n: rate(n), font=FONT_SM, fg=TEXT,
+                          bg=PANEL, activebackground=PINK_DEEP, relief="flat", bd=0,
+                          padx=6, pady=1, cursor="hand2")
+            b.pack(side="left", padx=(4, 0))
+            buttons.append(b)
+        tk.Label(row, text="  why (optional)", font=FONT_SM, fg=DIM, bg=PANEL_HI).pack(side="left")
+        why.pack(side="left", padx=(4, 0))
+        status = tk.Label(row, text="", font=FONT_SM, fg=MUTED, bg=PANEL_HI)
+        status.pack(side="left", padx=(8, 0))
+        self.chat_log.config(state="normal")
+        self.chat_log.window_create("end", window=row)
+        self.chat_log.insert("end", "\n")
+        self.chat_log.config(state="disabled")
+        self.chat_log.see("end")
+
     def _build_planner(self, master):
         master.columnconfigure(0, weight=1)
         master.columnconfigure(1, weight=0, minsize=430)

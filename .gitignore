@@ -28,3 +28,7 @@ z_style_notes.json
 # Scratch folder (holds its own .env) and panel test output.
 New folder/
 panel_test.log
+# Local humor-bench output.
+runs/
+# Owner's Test Chat ratings — private test messages, local only.
+z_owner_ratings.json

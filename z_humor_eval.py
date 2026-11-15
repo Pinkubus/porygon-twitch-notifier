@@ -273,8 +273,16 @@ def _fake_target(msg: str) -> dict:
     }
 
 
+PIPELINE = False  # --pipeline: score the real summon path (compose_reply)
+
+
 def run_case(case: dict, unprompted: bool) -> tuple[Optional[str], bool]:
     context = f">>> someone: {case['msg']}"
+    if PIPELINE and not unprompted:
+        line = z_brain.compose_reply(
+            context, _fake_target(case["msg"]), "general", 0, set(), recent_replies=(),
+        )
+        return line, bool(line)
     return z_brain.compose_best(
         context=context,
         target=_fake_target(case["msg"]),
@@ -299,7 +307,11 @@ def main() -> int:
                     help="run only the held-out messages (implies --heldout)")
     ap.add_argument("--out", default="", help="write results as JSON here")
     ap.add_argument("--label", default="", help="name this run in the saved JSON")
+    ap.add_argument("--pipeline", action="store_true",
+                    help="use the real !z/summon path (batch drafts + scoring) instead of compose_best")
     args = ap.parse_args()
+    global PIPELINE
+    PIPELINE = args.pipeline
 
     if not z_brain.is_configured():
         print("ANTHROPIC_API_KEY not set (looked in .env and the environment).")
