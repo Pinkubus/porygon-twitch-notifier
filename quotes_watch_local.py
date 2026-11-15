@@ -77,6 +77,7 @@ import z_bits
 import feature_requests
 import quotes
 import porygon_z
+import scheduled_polls
 import proc_guard
 import social_watch
 
@@ -255,6 +256,9 @@ def _poll_loop(bot_user_id: str, stop_event: threading.Event) -> None:
             # so there's nothing to reconcile via git either.
             if social_watch.is_configured():
                 social_watch.scan_and_process()
+            # Polls planned in the panel's Poll Planner tab. Local-only state
+            # (scheduled_polls.json is gitignored); posting just logs to activity.log.
+            scheduled_polls.post_due()
             if activity_log.flush_if_dirty():
                 _commit_and_push(["activity.log"], "Update activity log [skip ci]")
         except Exception as e:
@@ -289,8 +293,30 @@ def _run_tray_icon(stop_event: threading.Event) -> None:
         logger.warning(f"Tray icon failed, running without it: {e}")
 
 
+def _disable_console_quick_edit() -> None:
+    """A stray click or drag in the console (start_porygon.bat's window)
+    puts it in QuickEdit "Select" mode, and Windows then blocks every write
+    to it until the selection is cleared — so the next log line froze the
+    whole watcher (quotes, Z, scheduled polls) for hours. Turn QuickEdit off
+    for our console; no-op when there isn't one (pythonw, redirected output)."""
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.GetStdHandle(-10)  # STD_INPUT_HANDLE
+        mode = ctypes.c_uint32()
+        if not kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            return
+        ENABLE_QUICK_EDIT_MODE, ENABLE_EXTENDED_FLAGS = 0x0040, 0x0080
+        kernel32.SetConsoleMode(handle, (mode.value & ~ENABLE_QUICK_EDIT_MODE) | ENABLE_EXTENDED_FLAGS)
+    except Exception as e:
+        logger.warning(f"Couldn't disable console QuickEdit: {e}")
+
+
 def main() -> int:
     proc_guard.kill_duplicate_instances(os.path.basename(__file__))
+    _disable_console_quick_edit()
     # .env is already loaded — see the module-level call above, right after
     # _load_env_file is defined and before any project import.
 

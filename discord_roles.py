@@ -179,8 +179,26 @@ _message_cache: dict[str, tuple[float, Optional[str], int, list[dict]]] = {}
 _MESSAGE_TTL = float(os.environ.get("DISCORD_MESSAGE_CACHE_SECONDS", 8))
 
 
+_THREAD_TYPES = (10, 11, 12)  # announcement, public, private threads
+
+
+def get_guild_active_threads(guild_id: str, token: str) -> list[dict]:
+    """Every active (non-archived) thread in the guild — the same
+    channel-shaped dicts `get_guild_text_channels` returns, plus a
+    `parent_id` pointing at the channel/forum they're hanging off of."""
+    data = _json(
+        _request("GET", f"{DISCORD_API}/guilds/{guild_id}/threads/active", token),
+        "active threads", None,
+    )
+    if not data:
+        return []
+    return [t for t in data.get("threads", []) if t.get("type") in _THREAD_TYPES]
+
+
 def get_guild_text_channels(guild_id: str, token: str) -> list[dict]:
-    """Text channels (type 0) in the guild, for message-scanning features.
+    """Text channels (type 0) plus every active thread in the guild, for
+    message-scanning features — a thread is just another place people post,
+    so anything that walks "every channel" needs to walk its threads too.
     Cached because every scan cycle asks for it and it almost never changes."""
     cached = _channel_cache.get(guild_id)
     if cached and time.time() - cached[0] < _CHANNEL_TTL:
@@ -192,6 +210,7 @@ def get_guild_text_channels(guild_id: str, token: str) -> list[dict]:
     if data is None:
         return cached[1] if cached else []
     channels = [c for c in data if c.get("type") == 0]
+    channels += get_guild_active_threads(guild_id, token)
     _channel_cache[guild_id] = (time.time(), channels)
     return channels
 

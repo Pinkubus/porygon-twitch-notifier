@@ -66,7 +66,7 @@ def _father_note() -> str:
     return porygon_names.address_note(subject="father")
 
 
-def compose(prompt: str, context: str = "") -> Optional[str]:
+def compose(prompt: str, context: str = "", revisions=()) -> Optional[str]:
     """One plain reply/post in Porygon's voice. No drafts, no critique pass,
     no humor judging — father is steering directly (this is only ever
     called from an explicit manual trigger), so there's no ambiguity about
@@ -77,6 +77,8 @@ def compose(prompt: str, context: str = "") -> Optional[str]:
     if context:
         parts.append(f"Context — the message this is replying to, or the situation it's about:\n{context}")
     parts.append(f"What to say:\n{prompt}")
+    if revisions:
+        parts.append(z_brain.revision_note(revisions))
     user = "\n\n".join(parts)
     return z_brain._call(MODEL, system, user, max_tokens=800, purpose="porygon_voice_manual")
 

@@ -191,6 +191,33 @@ someone of — no catchphrases, nicknames or signature lines. They are voices
 Z puts on, not impressions it does. `Z_TONE_SHIFT_RATE` controls how often any
 costume is worn at all.
 
+### Speech training
+
+Any `.txt` file in `z_speech/` is a comedic influence on Z. On about half
+of composes (`Z_SPEECH_RATE`, default 0.5) one random ~900-character excerpt
+(`Z_SPEECH_CHARS`) is put in the system prompt as a sense of humor to absorb
+(confident insane claims, escalation, swerves, deflated brags), with explicit
+orders not to reuse any of its words, slang or topics. It's framed as a basis
+for Z's own style: sometimes he thinks like them, sometimes he remixes their
+instincts with his deadpan bureaucrat mind or pushes a move further into
+something of his own. With two or more files, `Z_SPEECH_MIX_RATE` (default
+0.4) of those composes get two half-length excerpts from different files to
+blend.
+
+### Running style note
+
+`z_style.py` keeps Z's own style from wandering reply to reply. After every
+posted prose reply (`Z_STYLE_UPDATE_RATE`, default 1.0), one small Haiku call
+(`Z_STYLE_MODEL`) folds what that line did into at most `Z_STYLE_MAX_NOTES`
+(default 8) bullets in `z_style_notes.json`, and those bullets go into every
+compose. Only replies that cleared scoring get posted, so it accumulates what
+worked. It records moves and instincts, never specific words or devices, so
+it can't harden into catchphrases. Edit the file to steer him, or delete it to
+start his style over. Caption junk (`[ __ ]`,
+`>>`, `[music]`) is stripped first. It's skipped in delicate channels. The
+folder is read fresh on every call, so you can add or remove files without
+restarting.
+
 ### Tuning it
 
 `z_humor_rubric.md` is the whole standard, and it's plain markdown — edit it
@@ -412,6 +439,56 @@ by setting `polls: false` in `z_controls.json`.
 | `Z_POLL_MODEL_ROUTER` | Haiku | Model that picks the model |
 | `Z_POLL_MODEL_CHEAP` | Haiku | Model for straightforward batches |
 | `Z_POLL_MODEL_RICH` | Sonnet | Model for open-ended ones |
+
+## Scheduling (`!schedule`)
+
+```
+!schedule within two weeks
+!schedule sometime soon
+!schedule a long ways out
+!schedule in january
+```
+
+The server keeps a shared Google Sheet where everyone fills in a tab with
+their own weekly-recurring free times (day, from, until). A `⭐ Best Times`
+tab, built entirely from spreadsheet formulas over everyone's individual
+tabs, ranks day-of-week + hour slots by how many people are free there —
+`z_schedule.py` reads *that* tab rather than recomputing the overlap itself,
+since the sheet already does it and the ranking is recurring (not tied to
+any one date, which is exactly the shape needed here).
+
+Everything after `!schedule` is a free-text steer on *which* dates to even
+consider — not a `tp_`-style token, since the sheet's ranking already
+covers "which days/times are good" and this is only answering "how far out
+should we look." The model turns that steer plus today's date into an
+actual range ("within two weeks" → the next 14 days, "in january" → that
+whole month), then picks 4 specific calendar dates inside it — favoring the
+highest-ranked slots, but spread across different days rather than four
+variations on one Saturday — and files them as a native Discord poll
+(multi-select, since someone being free on more than one of the four is the
+common case, not the exception).
+
+Needs a plain Google API key (`GOOGLE_API_KEY`), not OAuth or a service
+account — Cloud Console → APIs & Services → Credentials → Create
+Credentials → API key, restricted to the Sheets API. The sheet itself has
+to be shared "Anyone with the link → Viewer"; the key can't see anything
+that isn't already link-viewable. `SCHEDULE_SHEET_ID` is the id from the
+sheet's own URL. A failed sheet fetch is reported as exactly that (and
+nothing gets posted) — never silently read as "nobody's free," which is
+what actually caused the Instagram-checker and reaction-role bugs
+elsewhere in this project.
+
+The whole feature can be switched off from the panel (**!schedule
+commands**) or by setting `schedule: false` in `z_controls.json`.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `GOOGLE_API_KEY` | — | Sheets API key, restricted to that API |
+| `SCHEDULE_SHEET_ID` | — | The workbook's id, from its URL |
+| `SCHEDULE_BEST_TIMES_TAB` | `⭐ Best Times` | Tab name, if the workbook renames it |
+| `Z_SCHEDULE_CONTEXT_SECONDS` | `86400` | How far back to read channel context |
+| `Z_SCHEDULE_DURATION_HOURS` | `48` | Poll duration |
+| `Z_SCHEDULE_MODEL` | Sonnet | Model used to plan the poll |
 
 ## Social media auto-poster (`!register`, `!post`)
 

@@ -1,7 +1,7 @@
 """
 quotes.py — poll-based "quote bot" feature, integrated into loop.py's 30s cycle.
 
-Two behaviors, scanned across every text channel in the guild:
+Two behaviors, scanned across every text channel and active thread in the guild:
   1. A message starting with "!addquote <text>" saves <text> as a quote and
      reacts with 📝 to confirm.
   2. Any other new message whose content contains a saved quote (case-

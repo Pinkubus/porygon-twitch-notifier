@@ -11,6 +11,7 @@ z_review_runs/
 z_live_status.json
 z_controls.json
 z_members_cache.json
+scheduled_polls.json
 *.json.tmp
 # Ties real Discord accounts to real social media handles — keep off a public repo.
 social_profiles.json
@@ -21,3 +22,9 @@ social_post_pending.json
 # cloud pass (which never has social features on) can't fast-forward it past
 # a command nothing has actually answered yet. See quotes.py's docstring.
 social_scan_state.json
+# Speech-training transcripts and Z's evolving style note — local only.
+z_speech/
+z_style_notes.json
+# Scratch folder (holds its own .env) and panel test output.
+New folder/
+panel_test.log

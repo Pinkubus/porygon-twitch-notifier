@@ -67,6 +67,7 @@ import feature_requests  # noqa: E402
 import porygon_names  # noqa: E402
 import porygon_voice  # noqa: E402
 import porygon_z  # noqa: E402
+import scheduled_polls  # noqa: E402
 import z_brain  # noqa: E402
 import z_live  # noqa: E402
 
@@ -77,6 +78,9 @@ WATCHER_SCRIPT = "quotes_watch_local.py"
 ICON_PATH = r"C:\Users\Williwaugh\Desktop\emotes\porygoncuter.png"
 
 HEARTBEAT_FRESH_SECONDS = 90
+# A watcher process that's been up this long without a fresh heartbeat isn't
+# starting, it's stuck (e.g. its console got paused in QuickEdit Select mode).
+WATCHER_STUCK_SECONDS = 180
 # Raw Discord user ids in activity.log lines, swapped for display names.
 _ID_RE = re.compile(r"\b\d{17,20}\b")
 STALE_PROCESSING_SECONDS = 20 * 60
@@ -114,6 +118,7 @@ SWITCHES = [
     ("six", "\u201cSix when I get there\u201d", "The glitchy number-guess callback.", False),
     ("quote_callback", "Quote-callback replies", "A real reply on top of a porygonwow reaction.", False),
     ("polls", "!poll commands", "Reads back the channel and files Discord polls on request.", False),
+    ("schedule", "!schedule commands", "Reads the availability sheet and files a dated scheduling poll.", False),
 ]
 
 
@@ -162,6 +167,7 @@ KIND_LABEL = {
     "jugglez": "jugglez-react",
     "!poll": "!poll",
     "!poll answer": "!poll",
+    "!schedule": "!schedule",
 }
 
 
@@ -250,17 +256,29 @@ def _fetch_members() -> dict[str, str]:
 
 
 def _fetch_text_channels() -> list[tuple[str, str]]:
-    """(channel_id, "#name") for every text channel in every configured
-    guild, freshest call wins — this is the "live-updated list" the manual
-    tool's dropdown is built from, refetched on demand rather than cached,
-    since a channel created/renamed minutes ago should show up immediately."""
+    """(channel_id, label) for every text channel and active thread in every
+    configured guild, freshest call wins — this is the "live-updated list"
+    the manual tool's dropdown is built from, refetched on demand rather than
+    cached, since a channel created/renamed minutes ago should show up
+    immediately. Threads are labelled "#parent › thread" (falling back to
+    just "#thread" if the parent isn't in this same list) since thread names
+    alone are often as generic as "Ikkicon 27'" and only make sense next to
+    the channel they're hanging off of."""
     token = os.environ.get("DISCORD_BOT_TOKEN")
     if not token:
         raise RuntimeError("DISCORD_BOT_TOKEN missing from .env")
     out: list[tuple[str, str]] = []
     for guild_id in discord_roles.configured_guild_ids():
-        for channel in discord_roles.get_guild_text_channels(guild_id, token):
-            out.append((channel["id"], f"#{channel.get('name', channel['id'])}"))
+        channels = discord_roles.get_guild_text_channels(guild_id, token)
+        names_by_id = {c["id"]: c.get("name", c["id"]) for c in channels}
+        for channel in channels:
+            name = channel.get("name", channel["id"])
+            if channel.get("type") in (10, 11, 12):  # thread
+                parent = names_by_id.get(channel.get("parent_id"))
+                label = f"#{parent} › {name}" if parent else f"#{name} (thread)"
+            else:
+                label = f"#{name}"
+            out.append((channel["id"], label))
     return out
 
 
@@ -491,7 +509,7 @@ class Panel(tk.Tk):
         super().__init__()
         self.title("Porygon-Z Control Panel")
         self.configure(bg=BG)
-        self.geometry(f"1320x{min(880, self.winfo_screenheight() - 80)}+20+10")
+        self.geometry(f"1320x{min(1000, self.winfo_screenheight() - 80)}+20+10")
         self.minsize(1100, 720)
         try:
             self._icon = tk.PhotoImage(file=ICON_PATH)
@@ -512,15 +530,27 @@ class Panel(tk.Tk):
         self.members: dict[str, str] = _known_members()
         self.member_rows: dict[str, dict] = {}
         self.pids: list[int] = []
+        self._pids_since = time.time()
         self._save_job = None
         self._log_mtime = 0.0
         self._features_mtime = -1.0
         self._features_open: set[str] = set()
         self._z_only = tk.BooleanVar(value=False)
 
+        style.configure("Z.TNotebook", background=BG, borderwidth=0, tabmargins=0,
+                        lightcolor=BG, darkcolor=BG, bordercolor=BG)
+        style.configure("Z.TNotebook.Tab", background=PANEL, foreground=MUTED, font=FONT_H,
+                        padding=(16, 6), borderwidth=0, lightcolor=PANEL, bordercolor=BG)
+        style.map("Z.TNotebook.Tab", background=[("selected", PANEL_HI)], foreground=[("selected", PINK)],
+                  lightcolor=[("selected", PANEL_HI)])
+
         self._build_header()
-        body = tk.Frame(self, bg=BG)
-        body.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+        tabs = ttk.Notebook(self, style="Z.TNotebook")
+        tabs.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+        body = tk.Frame(tabs, bg=BG, pady=12)
+        tabs.add(body, text="Control")
+        planner = tk.Frame(tabs, bg=BG, pady=12)
+        tabs.add(planner, text="Poll Planner")
         body.columnconfigure(0, weight=0, minsize=330)
         body.columnconfigure(1, weight=0, minsize=430)
         body.columnconfigure(2, weight=1)
@@ -534,6 +564,7 @@ class Panel(tk.Tk):
         # which needs the room to wrap.
         self._build_features(body).grid(row=1, column=0, columnspan=3, sticky="ew", pady=(12, 0))
         self._build_manual(body).grid(row=2, column=0, columnspan=3, sticky="ew", pady=(12, 0))
+        self._build_planner(planner)
 
         self._rebuild_member_rows()
         self._load_controls_into_widgets()
@@ -542,6 +573,7 @@ class Panel(tk.Tk):
         self._poll_status()
         self._poll_log()
         self._poll_features()
+        self._poll_schedule()
         self._poll_procs()
         self._animate()
 
@@ -1016,7 +1048,7 @@ class Panel(tk.Tk):
         wrap.pack(fill="both", expand=True)
         # Fixed height: the card is a collapsed list, not the main view —
         # it scrolls rather than pushing the feed off the window.
-        self.features_canvas = tk.Canvas(wrap, bg=PANEL, highlightthickness=0, height=136)
+        self.features_canvas = tk.Canvas(wrap, bg=PANEL, highlightthickness=0, height=96)
         sb = ttk.Scrollbar(
             wrap, orient="vertical", command=self.features_canvas.yview, style="Z.Vertical.TScrollbar",
         )
@@ -1060,6 +1092,7 @@ class Panel(tk.Tk):
         for value, label in (("z", "Porygon Z"), ("porygon", "Porygon")):
             tk.Radiobutton(
                 row1, text=label, value=value, variable=self._manual_bot,
+                command=self._clear_manual_preview,  # a draft in one voice can't post as the other
                 font=FONT, fg=TEXT, bg=PANEL, selectcolor=PANEL_HI,
                 activebackground=PANEL, activeforeground=TEXT, highlightthickness=0,
             ).pack(side="left", padx=(8, 0))
@@ -1083,6 +1116,7 @@ class Panel(tk.Tk):
         )
         self.manual_message_id.pack(side="left", padx=(8, 0), ipady=3)
         self.manual_message_id.bind("<KeyRelease>", self._on_manual_message_id_typed)
+        self.manual_message_id.bind("<KeyRelease>", lambda e: self._note_manual_preview_stale(), add="+")
         self.manual_message_id.bind("<FocusOut>", lambda e: self._resolve_manual_channel_from_message())
         self.manual_mode_note = tk.Label(row2, text="", font=FONT_SM, fg=DIM, bg=PANEL)
         self.manual_mode_note.pack(side="left", padx=(8, 0))
@@ -1091,30 +1125,76 @@ class Panel(tk.Tk):
         self._manual_resolve_job = None
         self._manual_resolving = False
 
-        tk.Label(body, text="What it should say", font=FONT, fg=MUTED, bg=PANEL, anchor="w").pack(
-            fill="x", pady=(10, 2),
+        # Prompt on the left, the line it wrote on the right. Nothing posts
+        # until Send, and Send posts what's in the right-hand box.
+        fields = tk.Frame(body, bg=PANEL)
+        fields.pack(fill="x", pady=(10, 0))
+        fields.columnconfigure(0, weight=1, uniform="manual")
+        fields.columnconfigure(1, weight=1, uniform="manual")
+
+        left = tk.Frame(fields, bg=PANEL)
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        tk.Label(left, text="What it should say", font=FONT, fg=MUTED, bg=PANEL, anchor="w").pack(
+            fill="x", pady=(0, 2),
         )
         self.manual_prompt = tk.Text(
-            body, height=3, font=FONT, fg=TEXT, bg=PANEL_HI, insertbackground=TEXT,
+            left, height=3, font=FONT, fg=TEXT, bg=PANEL_HI, insertbackground=TEXT,
             relief="flat", wrap="word", padx=8, pady=6,
         )
         self.manual_prompt.pack(fill="x")
+        self.manual_prompt.bind("<KeyRelease>", lambda e: self._note_manual_preview_stale())
         tk.Label(
-            body, text="tip: just \":emote_name:\" (with the message id above) reacts instead of replying",
+            left, text="tip: just \":emote_name:\" (with the message id above) reacts instead of replying",
             font=FONT_SM, fg=DIM, bg=PANEL, anchor="w",
         ).pack(fill="x", pady=(2, 0))
+
+        right = tk.Frame(fields, bg=PANEL)
+        right.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+        preview_head = tk.Frame(right, bg=PANEL)
+        preview_head.pack(fill="x", pady=(0, 2))
+        tk.Label(preview_head, text="What it will post (editable)", font=FONT, fg=MUTED, bg=PANEL).pack(side="left")
+        self.manual_preview_note = tk.Label(preview_head, text="", font=FONT_SM, fg=YELLOW, bg=PANEL)
+        self.manual_preview_note.pack(side="right")
+        self.manual_preview = self._scrolling_text(
+            right, height=4, font=FONT, fg=TEXT, bg=PANEL_HI, insertbackground=TEXT,
+            relief="flat", wrap="word", padx=8, pady=6,
+        )
+        self.manual_preview.bind("<KeyRelease>", self._on_manual_preview_edited)
+        tk.Label(right, text="As posted", font=FONT_SM, fg=DIM, bg=PANEL, anchor="w").pack(fill="x", pady=(4, 0))
+        self.manual_styled = self._scrolling_text(
+            right, height=2, font=FONT_SM, fg=MUTED, bg=PANEL, relief="flat", wrap="word",
+            padx=0, pady=0, state="disabled",
+        )
+        feedback_row = tk.Frame(right, bg=PANEL)
+        feedback_row.pack(fill="x", pady=(6, 0))
+        tk.Label(feedback_row, text="Feedback", font=FONT, fg=MUTED, bg=PANEL).pack(side="left")
+        self.manual_feedback_btn = _button(feedback_row, "Redo with feedback", self.redo_manual_with_feedback)
+        self.manual_feedback_btn.pack(side="right")
+        self.manual_feedback = tk.Entry(
+            feedback_row, font=FONT, fg=TEXT, bg=PANEL_HI, insertbackground=TEXT, relief="flat",
+        )
+        self.manual_feedback.pack(side="left", fill="x", expand=True, padx=(8, 6), ipady=3)
+        self.manual_feedback.bind("<Return>", lambda e: self.redo_manual_with_feedback())
+        self._manual_revisions: list[tuple[str, str]] = []  # (attempt, father's note), oldest first
+        self._manual_draft: Optional[dict] = None  # what the preview was written from
+        self._manual_styled_text = ""  # exactly what Send posts
+        self._manual_styled_for: Optional[str] = None  # the clean text that styling was made from
+        self._manual_restyle_job = None
 
         self._manual_about_porygon = tk.BooleanVar(value=False)
         row3 = tk.Frame(body, bg=PANEL)
         row3.pack(fill="x", pady=(8, 0))
         tk.Checkbutton(
             row3, text="This message is about/for Porygon (the other bot)",
-            variable=self._manual_about_porygon, font=FONT_SM, fg=MUTED, bg=PANEL,
+            variable=self._manual_about_porygon, command=self._note_manual_preview_stale,
+            font=FONT_SM, fg=MUTED, bg=PANEL,
             selectcolor=PANEL_HI, activebackground=PANEL, activeforeground=TEXT,
             highlightthickness=0,
         ).pack(side="left")
         self.manual_send_btn = _button(row3, "Send", self.send_manual, color=PINK_DEEP)
         self.manual_send_btn.pack(side="right")
+        self.manual_preview_btn = _button(row3, "Preview", self.preview_manual)
+        self.manual_preview_btn.pack(side="right", padx=(0, 6))
         self.manual_status = tk.Label(row3, text="", font=FONT_SM, fg=MUTED, bg=PANEL, anchor="e")
         self.manual_status.pack(side="right", padx=(0, 12), fill="x", expand=True)
         return outer
@@ -1141,6 +1221,7 @@ class Panel(tk.Tk):
         elif channels:
             self.manual_channel_combo.current(0)
         self.manual_note.config(text=f"{len(channels)} channels", fg=MUTED)
+        self._planner_channels_loaded(channels)
 
     # ---- manual message: channel vs. message-id are mutually exclusive ----
     def _set_manual_channel_active(self, active: bool):
@@ -1226,35 +1307,194 @@ class Panel(tk.Tk):
         else:
             self.manual_mode_note.config(text="not found in any channel", fg=YELLOW)
 
-    def send_manual(self):
+    def _scrolling_text(self, master, **options) -> tk.Text:
+        """A Text with its own scrollbar, packed into `master`. A long line
+        scrolls inside the box instead of growing the card and squeezing the
+        rest of the tab."""
+        wrap = tk.Frame(master, bg=PANEL)
+        wrap.pack(fill="x")
+        text = tk.Text(wrap, **options)
+        sb = ttk.Scrollbar(wrap, orient="vertical", command=text.yview, style="Z.Vertical.TScrollbar")
+        text.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        text.pack(side="left", fill="both", expand=True)
+        return text
+
+    def _manual_target(self) -> Optional[tuple[str, str, str]]:
+        """(channel_id, channel_name, message_id) from the form, or None after
+        saying what's missing."""
         message_id = self.manual_message_id.get().strip()
         if message_id and self._manual_resolving:
             self.manual_status.config(text="still finding that message's channel — hang on", fg=YELLOW)
-            return
+            return None
         label = self.manual_channel_combo.get()
         channel_id = self._manual_channel_by_label.get(label)
         if not channel_id:
             self.manual_status.config(text="pick a channel first", fg=YELLOW)
+            return None
+        return channel_id, label.lstrip("#"), message_id
+
+    def _set_manual_busy(self, busy: bool):
+        state = "disabled" if busy else "normal"
+        self.manual_preview_btn.config(state=state)
+        self.manual_feedback_btn.config(state=state)
+        self.manual_send_btn.config(state=state)
+
+    def redo_manual_with_feedback(self):
+        """Send the line in the box back with father's note. The box's current
+        text is what the note is about, hand edits included."""
+        feedback = self.manual_feedback.get().strip()
+        if not feedback:
+            self.manual_status.config(text="type your feedback first", fg=YELLOW)
             return
+        line = self.manual_preview.get("1.0", "end").strip()
+        if not line:
+            self.manual_status.config(text="nothing to give feedback on — hit Preview first", fg=YELLOW)
+            return
+        self.preview_manual(revisions=[*self._manual_revisions, (line, feedback)])
+
+    def preview_manual(self, revisions: Optional[list[tuple[str, str]]] = None):
+        """Write the line and show it, posting nothing. Costs one compose call
+        each time, and a preview that's thrown away leaves no trace: names and
+        reply history only get recorded once a line is actually sent. Plain
+        Preview starts over; `revisions` carries the feedback rounds so far."""
+        revisions = revisions or []
+        target = self._manual_target()
+        if not target:
+            return
+        channel_id, _, message_id = target
         prompt = self.manual_prompt.get("1.0", "end").strip()
         if not prompt:
             self.manual_status.config(text="say what it should say", fg=YELLOW)
             return
+        if _EMOTE_SHORTCODE_RE.match(prompt):
+            self.manual_status.config(text="that's a reaction — nothing to preview, just hit Send", fg=YELLOW)
+            return
         bot = self._manual_bot.get()
         about_porygon = self._manual_about_porygon.get()
-        channel_name = label.lstrip("#")
+        draft = {
+            "prompt": prompt, "bot": bot, "about_porygon": about_porygon, "message_id": message_id,
+            "revisions": revisions,
+        }
 
-        self.manual_send_btn.config(state="disabled")
+        self._set_manual_busy(True)
+        self.manual_status.config(text="writing…", fg=MUTED)
+
+        def work():
+            try:
+                reply = self._compose_manual(bot, channel_id, message_id, prompt, about_porygon, revisions)
+                self.after(0, lambda: self._manual_previewed(draft, reply))
+            except Exception as e:
+                error = str(e)
+                self.after(0, lambda: self._manual_preview_failed(error))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _manual_previewed(self, draft: dict, reply: str):
+        self._set_manual_busy(False)
+        if draft["bot"] != self._manual_bot.get():
+            # Speaker switched while it was writing: this line is in the wrong voice.
+            self.manual_status.config(text="speaker changed while writing — hit Preview again", fg=YELLOW)
+            return
+        self._manual_draft = draft
+        self._manual_revisions = draft["revisions"]
+        self.manual_feedback.delete(0, "end")
+        self.manual_preview.delete("1.0", "end")
+        self.manual_preview.insert("1.0", reply)
+        self._restyle_manual_preview()
+        self._note_manual_preview_stale()
+        self.manual_status.config(text="not posted yet — edit it, give feedback, Preview again, or Send", fg=BLUE)
+
+    def _manual_preview_failed(self, error: str):
+        self._set_manual_busy(False)
+        self.manual_status.config(text=f"failed: {error}", fg=RED)
+
+    def _on_manual_preview_edited(self, event=None):
+        if self._manual_restyle_job:
+            self.after_cancel(self._manual_restyle_job)
+        self._manual_restyle_job = self.after(400, self._restyle_manual_preview)
+
+    def _restyle_manual_preview(self):
+        """Z's styling is random, so it's rolled once per version of the text
+        and that exact roll is what Send posts — the glitched line on screen
+        is the glitched line that lands."""
+        self._manual_restyle_job = None
+        text = self.manual_preview.get("1.0", "end").strip()
+        if text == self._manual_styled_for:
+            return
+        bot = self._manual_bot.get()
+        self._manual_styled_for = text
+        if not text:
+            self._manual_styled_text = ""
+        elif bot == "z":
+            self._manual_styled_text = porygon_z._for_post(text)
+        else:
+            self._manual_styled_text = porygon_voice.for_post(text)
+        self._show_manual_styled(self._manual_styled_text)
+
+    def _show_manual_styled(self, text: str):
+        self.manual_styled.config(state="normal")
+        self.manual_styled.delete("1.0", "end")
+        self.manual_styled.insert("1.0", text)
+        self.manual_styled.config(state="disabled")
+
+    def _note_manual_preview_stale(self):
+        """The preview is the line that posts, so it can't quietly go out of
+        step with the form — say so when the ask has moved on from it."""
+        draft = self._manual_draft
+        stale = bool(draft) and (
+            draft["prompt"] != self.manual_prompt.get("1.0", "end").strip()
+            or draft["about_porygon"] != self._manual_about_porygon.get()
+            or draft["message_id"] != self.manual_message_id.get().strip()
+        )
+        self.manual_preview_note.config(text="form changed since this was written" if stale else "")
+
+    def _clear_manual_preview(self):
+        if self._manual_restyle_job:
+            self.after_cancel(self._manual_restyle_job)
+            self._manual_restyle_job = None
+        self._manual_draft = None
+        self._manual_revisions = []
+        self._manual_styled_text = ""
+        self._manual_styled_for = None
+        self.manual_preview.delete("1.0", "end")
+        self.manual_feedback.delete(0, "end")
+        self._show_manual_styled("")
+        self.manual_preview_note.config(text="")
+
+    def send_manual(self):
+        target = self._manual_target()
+        if not target:
+            return
+        channel_id, channel_name, message_id = target
+        prompt = self.manual_prompt.get("1.0", "end").strip()
+        bot = self._manual_bot.get()
+        shortcode = _EMOTE_SHORTCODE_RE.match(prompt)
+
+        if shortcode:
+            emote_name = shortcode.group(1)
+            action = lambda: self._react_manual(bot, channel_id, channel_name, message_id, emote_name)
+        else:
+            self._restyle_manual_preview()  # an edit still inside the debounce window
+            text = self.manual_preview.get("1.0", "end").strip()
+            if not text:
+                self.manual_status.config(text="hit Preview first — nothing to send yet", fg=YELLOW)
+                return
+            styled = self._manual_styled_text
+            draft = self._manual_draft
+            about_porygon = draft["about_porygon"] if draft else self._manual_about_porygon.get()
+            action = lambda: self._post_manual(bot, channel_id, channel_name, message_id, text, styled, about_porygon)
+
+        self._set_manual_busy(True)
         self.manual_status.config(text="sending…", fg=MUTED)
 
         def work():
             try:
-                text = self._compose_and_post_manual(
-                    bot, channel_id, channel_name, message_id, prompt, about_porygon,
-                )
-                self.after(0, lambda: self._manual_done(True, text))
+                posted = action()
+                self.after(0, lambda: self._manual_done(True, posted))
             except Exception as e:
-                self.after(0, lambda: self._manual_done(False, str(e)))
+                error = str(e)
+                self.after(0, lambda: self._manual_done(False, error))
 
         threading.Thread(target=work, daemon=True).start()
 
@@ -1276,21 +1516,15 @@ class Panel(tk.Tk):
         activity_log.log(f"\U0001f5a5️ Manual reaction :{emote_name}: added as {who} (#{channel_name})")
         return f":{emote_name}: reacted"
 
-    def _compose_and_post_manual(
-        self, bot: str, channel_id: str, channel_name: str,
-        message_id: str, prompt: str, about_porygon: bool,
+    def _compose_manual(
+        self, bot: str, channel_id: str, message_id: str, prompt: str, about_porygon: bool,
+        revisions: list[tuple[str, str]],
     ) -> str:
-        """Runs off the UI thread. Returns the posted text, or raises with a
-        message fit to show directly in the status label."""
-        read_token = os.environ["DISCORD_BOT_TOKEN"]
-
-        shortcode = _EMOTE_SHORTCODE_RE.match(prompt)
-        if shortcode:
-            return self._react_manual(bot, channel_id, channel_name, message_id, shortcode.group(1))
-
+        """Runs off the UI thread. Returns the clean line (no styling), or
+        raises with a message fit to show directly in the status label."""
         context = ""
         if message_id:
-            msg = discord_roles.get_message(channel_id, message_id, read_token)
+            msg = discord_roles.get_message(channel_id, message_id, os.environ["DISCORD_BOT_TOKEN"])
             if not msg:
                 raise RuntimeError("couldn't find that message id in that channel")
             author = msg.get("author", {})
@@ -1298,13 +1532,34 @@ class Panel(tk.Tk):
             context = f"{who}: {msg.get('content') or '(no text)'}"
 
         if bot == "z":
-            reply = z_brain.compose_manual(prompt, context=context, about_porygon=about_porygon)
+            reply = z_brain.compose_manual(prompt, context=context, about_porygon=about_porygon, revisions=revisions)
             if not reply:
                 raise RuntimeError("Z had nothing back (API error, or check the log for a truncated-thinking warning)")
-            posted_text = porygon_z._for_post(reply)
-            act_token = porygon_z._z_token()
-            touched = ["z_reply_history.txt", "porygon_names.json"]
-            porygon_names.record_from_line(reply)  # father, if the line named him
+        else:
+            reply = porygon_voice.compose(prompt, context=context, revisions=revisions)
+            if not reply:
+                raise RuntimeError("Porygon had nothing back (API error — check the log)")
+        return reply
+
+    def _post_manual(
+        self, bot: str, channel_id: str, channel_name: str, message_id: str,
+        reply: str, posted_text: str, about_porygon: bool,
+    ) -> str:
+        """Runs off the UI thread. Posts the previewed line, then records it —
+        recording waits for the post so a rejected line isn't remembered as
+        said. Returns the posted text, or raises like _compose_manual."""
+        act_token = porygon_z._z_token() if bot == "z" else os.environ["DISCORD_BOT_TOKEN"]
+        if message_id:
+            posted_id = discord_roles.post_reply(channel_id, message_id, act_token, posted_text)
+        else:
+            posted_id = discord_roles.post_message_with_file(channel_id, act_token, posted_text)
+        if not posted_id:
+            raise RuntimeError("Discord rejected the post — check the log for the response body")
+
+        touched = ["porygon_names.json"]
+        porygon_names.record_from_line(reply)  # father, if the line named him
+        if bot == "z":
+            touched.append("z_reply_history.txt")
             if about_porygon:
                 porygon_names.record_from_line(reply, subject="porygon")
                 touched.append("porygon_sibling_names.json")
@@ -1313,21 +1568,6 @@ class Panel(tk.Tk):
                     f.write(reply.replace("\n", " ").strip() + "\n")
             except OSError:
                 pass
-        else:
-            reply = porygon_voice.compose(prompt, context=context)
-            if not reply:
-                raise RuntimeError("Porygon had nothing back (API error — check the log)")
-            posted_text = porygon_voice.for_post(reply)
-            act_token = read_token
-            touched = ["porygon_names.json"]
-            porygon_names.record_from_line(reply)
-
-        if message_id:
-            posted_id = discord_roles.post_reply(channel_id, message_id, act_token, posted_text)
-        else:
-            posted_id = discord_roles.post_message_with_file(channel_id, act_token, posted_text)
-        if not posted_id:
-            raise RuntimeError("Discord rejected the post — check the log for the response body")
 
         who = "Porygon Z" if bot == "z" else "Porygon"
         activity_log.log(f"\U0001f5a5️ Manual message sent as {who} (#{channel_name})")
@@ -1336,7 +1576,7 @@ class Panel(tk.Tk):
         return posted_text
 
     def _manual_done(self, ok: bool, text: str):
-        self.manual_send_btn.config(state="normal")
+        self._set_manual_busy(False)
         if ok:
             preview = text if len(text) <= 140 else text[:139] + "…"
             self.manual_status.config(text=f"posted: {preview}", fg=BLUE)
@@ -1346,6 +1586,7 @@ class Panel(tk.Tk):
             self._set_manual_channel_active(True)
             self.manual_mode_note.config(text=f"({self._manual_mode_default_note})", fg=DIM)
             self.manual_prompt.delete("1.0", "end")
+            self._clear_manual_preview()
         else:
             self.manual_status.config(text=f"failed: {text}", fg=RED)
 
@@ -1421,6 +1662,392 @@ class Panel(tk.Tk):
                 detail.pack(fill="x", padx=(22, 2), pady=(2, 4))
                 self._feature_details.append(detail)
 
+    # ---- poll planner tab ----
+    # Draft a poll with Claude, edit it, and schedule it for a channel. The
+    # panel only writes scheduled_polls.json; the watcher posts each one when
+    # its time comes (scheduled_polls.post_due), so the panel can be closed.
+    def _build_planner(self, master):
+        master.columnconfigure(0, weight=1)
+        master.columnconfigure(1, weight=0, minsize=430)
+        master.rowconfigure(0, weight=1)
+
+        outer, body, self.planner_note = _card(master, "PLAN A POLL")
+        outer.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+        self._planner_channel_by_label: dict[str, str] = {}
+
+        row1 = tk.Frame(body, bg=PANEL)
+        row1.pack(fill="x")
+        tk.Label(row1, text="Channel", font=FONT, fg=MUTED, bg=PANEL).pack(side="left")
+        self.planner_channel_combo = ttk.Combobox(row1, width=30, state="readonly", font=FONT)
+        self.planner_channel_combo.pack(side="left", padx=(8, 0))
+        _button(row1, "↻", self.refresh_manual_channels, color=PANEL_HI).pack(side="left", padx=(4, 0))
+        tk.Label(row1, text="  Posts as", font=FONT, fg=MUTED, bg=PANEL).pack(side="left", padx=(16, 0))
+        self._planner_bot = tk.StringVar(value="z")
+        for value, label in (("z", "Porygon Z"), ("porygon", "Porygon")):
+            tk.Radiobutton(
+                row1, text=label, value=value, variable=self._planner_bot,
+                font=FONT, fg=TEXT, bg=PANEL, selectcolor=PANEL_HI,
+                activebackground=PANEL, activeforeground=TEXT, highlightthickness=0,
+            ).pack(side="left", padx=(8, 0))
+
+        tk.Label(body, text="What poll do you want? (Claude drafts it — you can edit everything after)",
+                 font=FONT, fg=MUTED, bg=PANEL, anchor="w").pack(fill="x", pady=(12, 2))
+        self.planner_prompt = tk.Text(
+            body, height=3, font=FONT, fg=TEXT, bg=PANEL_HI, insertbackground=TEXT,
+            relief="flat", wrap="word", padx=8, pady=6,
+        )
+        self.planner_prompt.pack(fill="x")
+        row2 = tk.Frame(body, bg=PANEL)
+        row2.pack(fill="x", pady=(6, 0))
+        self.planner_draft_btn = _button(row2, "✦  Draft with Claude", self.draft_planner_poll)
+        self.planner_draft_btn.pack(side="left")
+        self.planner_draft_status = tk.Label(row2, text="", font=FONT_SM, fg=MUTED, bg=PANEL, anchor="w")
+        self.planner_draft_status.pack(side="left", padx=(10, 0))
+
+        tk.Frame(body, bg=LINE, height=1).pack(fill="x", pady=12)
+
+        tk.Label(body, text="Question", font=FONT, fg=MUTED, bg=PANEL, anchor="w").pack(fill="x")
+        self.planner_question = tk.Entry(
+            body, font=FONT, fg=TEXT, bg=PANEL_HI, insertbackground=TEXT, relief="flat",
+        )
+        self.planner_question.pack(fill="x", ipady=4, pady=(2, 0))
+
+        opts_head = tk.Frame(body, bg=PANEL)
+        opts_head.pack(fill="x", pady=(10, 2))
+        tk.Label(opts_head, text="Options", font=FONT, fg=MUTED, bg=PANEL).pack(side="left")
+        tk.Label(opts_head, text=f"2–{scheduled_polls.MAX_OPTIONS}, up to {scheduled_polls.MAX_OPTION_CHARS} chars each",
+                 font=FONT_SM, fg=DIM, bg=PANEL).pack(side="left", padx=(8, 0))
+        self.planner_add_opt_btn = _button(opts_head, "+ option", lambda: self._planner_add_option(""), color=PANEL_HI)
+        self.planner_add_opt_btn.pack(side="right")
+        self.planner_options_frame = tk.Frame(body, bg=PANEL)
+        self.planner_options_frame.pack(fill="x")
+        self._planner_options: list[tk.StringVar] = []
+
+        row3 = tk.Frame(body, bg=PANEL)
+        row3.pack(fill="x", pady=(10, 0))
+        tk.Label(row3, text="Voting stays open", font=FONT, fg=MUTED, bg=PANEL).pack(side="left")
+        self.planner_duration = tk.Spinbox(
+            row3, from_=1, to=scheduled_polls.MAX_DURATION_HOURS, width=5, font=FONT, fg=TEXT, bg=PANEL_HI,
+            buttonbackground=PANEL_HI, insertbackground=TEXT, relief="flat",
+        )
+        self.planner_duration.pack(side="left", padx=(8, 4))
+        tk.Label(row3, text="hours", font=FONT, fg=MUTED, bg=PANEL).pack(side="left")
+        self._planner_multi = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            row3, text="Allow picking more than one", variable=self._planner_multi,
+            font=FONT, fg=MUTED, bg=PANEL, selectcolor=PANEL_HI, activebackground=PANEL,
+            activeforeground=TEXT, highlightthickness=0,
+        ).pack(side="left", padx=(16, 0))
+
+        row4 = tk.Frame(body, bg=PANEL)
+        row4.pack(fill="x", pady=(10, 0))
+        tk.Label(row4, text="Post on", font=FONT, fg=MUTED, bg=PANEL).pack(side="left")
+        self.planner_date = tk.Entry(row4, font=FONT_MONO, fg=TEXT, bg=PANEL_HI, insertbackground=TEXT,
+                                     relief="flat", width=12)
+        self.planner_date.pack(side="left", padx=(8, 4), ipady=3)
+        tk.Label(row4, text="at", font=FONT, fg=MUTED, bg=PANEL).pack(side="left")
+        self.planner_time = tk.Entry(row4, font=FONT_MONO, fg=TEXT, bg=PANEL_HI, insertbackground=TEXT,
+                                     relief="flat", width=9)
+        self.planner_time.pack(side="left", padx=(4, 0), ipady=3)
+        self.planner_when_note = tk.Label(row4, text="", font=FONT_SM, fg=DIM, bg=PANEL, anchor="w")
+        self.planner_when_note.pack(side="left", padx=(10, 0))
+        for entry in (self.planner_date, self.planner_time):
+            entry.bind("<KeyRelease>", lambda e: self._planner_update_when())
+
+        row5 = tk.Frame(body, bg=PANEL)
+        row5.pack(fill="x", pady=(14, 0))
+        self.planner_schedule_btn = _button(row5, "Schedule poll", self.schedule_planner_poll, color=PINK_DEEP)
+        self.planner_schedule_btn.pack(side="right")
+        _button(row5, "Clear", self._planner_reset, color=PANEL_HI).pack(side="right", padx=(0, 6))
+        self.planner_status = tk.Label(row5, text="", font=FONT_SM, fg=MUTED, bg=PANEL, anchor="e")
+        self.planner_status.pack(side="right", padx=(0, 12), fill="x", expand=True)
+
+        self._build_schedule_list(master).grid(row=0, column=1, sticky="nsew")
+        self._planner_reset()
+
+    def _planner_channels_loaded(self, channels: list[tuple[str, str]]):
+        self._planner_channel_by_label = {label: cid for cid, label in channels}
+        current = self.planner_channel_combo.get()
+        self.planner_channel_combo["values"] = [label for _, label in channels]
+        if current in self._planner_channel_by_label:
+            self.planner_channel_combo.set(current)
+        elif channels:
+            self.planner_channel_combo.current(0)
+
+    def _planner_add_option(self, text: str):
+        if len(self._planner_options) >= scheduled_polls.MAX_OPTIONS:
+            return
+        self._planner_options.append(tk.StringVar(value=text))
+        self._render_planner_options()
+
+    def _planner_remove_option(self, var: tk.StringVar):
+        self._planner_options.remove(var)
+        self._render_planner_options()
+
+    def _render_planner_options(self):
+        for child in self.planner_options_frame.winfo_children():
+            child.destroy()
+        for i, var in enumerate(self._planner_options, 1):
+            row = tk.Frame(self.planner_options_frame, bg=PANEL)
+            row.pack(fill="x", pady=1)
+            tk.Label(row, text=f"{i}.", font=FONT_SM, fg=DIM, bg=PANEL, width=3, anchor="e").pack(side="left")
+            tk.Entry(row, textvariable=var, font=FONT, fg=TEXT, bg=PANEL_HI, insertbackground=TEXT,
+                     relief="flat").pack(side="left", fill="x", expand=True, padx=(4, 4), ipady=2)
+            tk.Button(
+                row, text="✕", command=lambda v=var: self._planner_remove_option(v), font=FONT_SM,
+                fg=MUTED, bg=PANEL, activebackground=PANEL_HI, activeforeground=RED, relief="flat",
+                bd=0, cursor="hand2",
+            ).pack(side="left")
+        full = len(self._planner_options) >= scheduled_polls.MAX_OPTIONS
+        self.planner_add_opt_btn.config(state="disabled" if full else "normal")
+
+    def _planner_fill(self, question: str, options: list[str], duration_hours: int, multi: bool):
+        self.planner_question.delete(0, "end")
+        self.planner_question.insert(0, question)
+        self._planner_options = [tk.StringVar(value=o) for o in options]
+        self._render_planner_options()
+        self.planner_duration.delete(0, "end")
+        self.planner_duration.insert(0, str(duration_hours))
+        self._planner_multi.set(multi)
+
+    def _planner_reset(self):
+        self.planner_prompt.delete("1.0", "end")
+        self._planner_fill("", ["", ""], 24, False)
+        # Next full hour at least an hour out — never a default a few minutes away.
+        when = (datetime.datetime.now() + datetime.timedelta(hours=2)).replace(minute=0, second=0, microsecond=0)
+        self.planner_date.delete(0, "end")
+        self.planner_date.insert(0, when.strftime("%Y-%m-%d"))
+        self.planner_time.delete(0, "end")
+        self.planner_time.insert(0, when.strftime("%H:%M"))
+        self.planner_draft_status.config(text="")
+        self.planner_status.config(text="")
+        self._planner_update_when()
+
+    @staticmethod
+    def _parse_when(date_s: str, time_s: str) -> datetime.datetime:
+        """Local date + time → datetime. Takes 2026-10-27 or 10/27(/2026) for
+        the date, and 19:30, 7:30pm, or 7pm for the time."""
+        date_s, time_s = date_s.strip(), time_s.strip().lower().replace(" ", "")
+        today = datetime.date.today()
+        date = None
+        for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y"):
+            try:
+                date = datetime.datetime.strptime(date_s, fmt).date()
+                break
+            except ValueError:
+                pass
+        if date is None:
+            try:
+                date = datetime.datetime.strptime(f"{date_s}/{today.year}", "%m/%d/%Y").date()
+            except ValueError:
+                raise ValueError("can't read that date — try 2026-10-27")
+            if date < today:
+                date = date.replace(year=today.year + 1)
+        for fmt in ("%H:%M", "%I:%M%p", "%I%p"):
+            try:
+                t = datetime.datetime.strptime(time_s, fmt).time()
+                return datetime.datetime.combine(date, t)
+            except ValueError:
+                pass
+        raise ValueError("can't read that time — try 19:30 or 7:30pm")
+
+    def _planner_update_when(self):
+        try:
+            when = self._parse_when(self.planner_date.get(), self.planner_time.get())
+        except ValueError as e:
+            self.planner_when_note.config(text=str(e), fg=YELLOW)
+            return
+        delta = when.timestamp() - time.time()
+        label = when.strftime("%a %b %d, %I:%M %p").replace(" 0", " ")
+        if delta < -60:
+            self.planner_when_note.config(text=f"{label} — that's in the past", fg=YELLOW)
+            return
+        mins = max(0, int(delta // 60))
+        span = f"{mins // 1440}d {mins % 1440 // 60}h" if mins >= 1440 else f"{mins // 60}h {mins % 60}m"
+        self.planner_when_note.config(text=f"{label}  (in {span}, your local time)", fg=DIM)
+
+    def draft_planner_poll(self):
+        label = self.planner_channel_combo.get()
+        if not self._planner_channel_by_label.get(label):
+            self.planner_draft_status.config(text="pick a channel first", fg=YELLOW)
+            return
+        prompt = self.planner_prompt.get("1.0", "end").strip()
+        if not prompt:
+            self.planner_draft_status.config(text="describe the poll you want first", fg=YELLOW)
+            return
+        self.planner_draft_btn.config(state="disabled")
+        self.planner_draft_status.config(text="Claude is drafting…", fg=MUTED)
+
+        def work():
+            try:
+                poll = scheduled_polls.draft(prompt, label.lstrip("#"))
+                self.after(0, lambda: self._planner_drafted(poll, None))
+            except Exception as e:
+                self.after(0, lambda: self._planner_drafted(None, str(e)))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _planner_drafted(self, poll: Optional[dict], error: Optional[str]):
+        self.planner_draft_btn.config(state="normal")
+        if error:
+            self.planner_draft_status.config(text=f"failed: {error}", fg=RED)
+            return
+        self._planner_fill(poll["question"], poll["options"], poll["duration_hours"], poll["allow_multiselect"])
+        self.planner_draft_status.config(text="drafted — edit anything below, or redraft", fg=BLUE)
+
+    def schedule_planner_poll(self):
+        label = self.planner_channel_combo.get()
+        channel_id = self._planner_channel_by_label.get(label)
+        if not channel_id:
+            self.planner_status.config(text="pick a channel first", fg=YELLOW)
+            return
+        question = " ".join(self.planner_question.get().split())
+        options = [" ".join(v.get().split()) for v in self._planner_options]
+        options = [o for o in options if o]
+        try:
+            duration = int(self.planner_duration.get())
+        except ValueError:
+            duration = 0
+        problem = scheduled_polls.validate(question, options, duration)
+        if problem:
+            self.planner_status.config(text=problem, fg=YELLOW)
+            return
+        try:
+            when = self._parse_when(self.planner_date.get(), self.planner_time.get())
+        except ValueError as e:
+            self.planner_status.config(text=str(e), fg=YELLOW)
+            return
+        if when.timestamp() < time.time() - 60:
+            self.planner_status.config(text="that time is in the past", fg=YELLOW)
+            return
+        scheduled_polls.add(
+            channel_id, label.lstrip("#"), self._planner_bot.get(), question, options,
+            when.timestamp(), duration, self._planner_multi.get(),
+        )
+        who = "Porygon Z" if self._planner_bot.get() == "z" else "Porygon"
+        activity_log.log(f"\U0001f4ca Poll scheduled for {when:%b %d %H:%M} as {who} ({label}): {question}")
+        self._planner_reset()
+        self.planner_status.config(text=f"scheduled for {label}", fg=BLUE)
+        if not self.pids:
+            self.planner_status.config(text=f"scheduled — but the watcher's offline; it posts these", fg=YELLOW)
+        self._refresh_schedule(force=True)
+
+    # ---- scheduled list ----
+    def _build_schedule_list(self, master):
+        outer, body, self.schedule_note = _card(master, "SCHEDULED POLLS")
+        wrap = tk.Frame(body, bg=PANEL)
+        wrap.pack(fill="both", expand=True)
+        self.schedule_canvas = tk.Canvas(wrap, bg=PANEL, highlightthickness=0)
+        sb = ttk.Scrollbar(wrap, orient="vertical", command=self.schedule_canvas.yview, style="Z.Vertical.TScrollbar")
+        self.schedule_canvas.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.schedule_canvas.pack(side="left", fill="both", expand=True)
+        self.schedule_inner = tk.Frame(self.schedule_canvas, bg=PANEL)
+        window = self.schedule_canvas.create_window((0, 0), window=self.schedule_inner, anchor="nw")
+        self.schedule_inner.bind(
+            "<Configure>", lambda e: self.schedule_canvas.configure(scrollregion=self.schedule_canvas.bbox("all")),
+        )
+        self.schedule_canvas.bind("<Configure>", lambda e: self.schedule_canvas.itemconfigure(window, width=e.width))
+
+        def _wheel(e):
+            self.schedule_canvas.yview_scroll(int(-e.delta / 120), "units")
+        self.schedule_canvas.bind("<Enter>", lambda e: self.schedule_canvas.bind_all("<MouseWheel>", _wheel))
+        self.schedule_canvas.bind("<Leave>", lambda e: self.schedule_canvas.unbind_all("<MouseWheel>"))
+        self._schedule_mtime = -1.0
+        return outer
+
+    def _poll_schedule(self):
+        self._refresh_schedule()
+        self.after(3000, self._poll_schedule)
+
+    def _refresh_schedule(self, force: bool = False):
+        """Re-render when the file changes — the watcher flips entries to
+        posted/failed/missed as it works through them."""
+        try:
+            mtime = os.path.getmtime(scheduled_polls.SCHEDULE_FILE)
+        except OSError:
+            mtime = 0.0
+        if mtime == self._schedule_mtime and not force:
+            return
+        self._schedule_mtime = mtime
+        entries = scheduled_polls.load()
+        pending = sorted((e for e in entries if e.get("status") == "pending"), key=lambda e: e.get("post_at", 0))
+        done = sorted((e for e in entries if e.get("status") != "pending"),
+                      key=lambda e: e.get("posted_at") or e.get("post_at", 0), reverse=True)
+        self.schedule_note.config(text=f"{len(pending)} upcoming", fg=MUTED)
+        for child in self.schedule_inner.winfo_children():
+            child.destroy()
+        if not entries:
+            tk.Label(self.schedule_inner, text="Nothing scheduled yet.", font=FONT_SM, fg=DIM, bg=PANEL,
+                     anchor="w").pack(fill="x", pady=8)
+            return
+        for e in pending + done:
+            self._schedule_row(e)
+
+    def _schedule_row(self, e: dict):
+        chip = {
+            "pending": ("UPCOMING", YELLOW), "posted": ("POSTED", BLUE), "failed": ("FAILED", RED),
+            "missed": ("MISSED", DIM), "cancelled": ("CANCELLED", DIM),
+        }.get(e.get("status"), (str(e.get("status", "?")).upper(), DIM))
+        row = tk.Frame(self.schedule_inner, bg=BG, padx=10, pady=7)
+        row.pack(fill="x", pady=(0, 6))
+        top = tk.Frame(row, bg=BG)
+        top.pack(fill="x")
+        tk.Label(top, text=chip[0], font=("Bahnschrift SemiBold", 8), fg=BG, bg=chip[1], padx=6).pack(side="left")
+        when = datetime.datetime.fromtimestamp(e.get("post_at", 0)).strftime("%a %b %d, %I:%M %p").replace(" 0", " ")
+        who = "Z" if e.get("bot") == "z" else "Porygon"
+        tk.Label(top, text=f"  {when}", font=FONT_B, fg=TEXT, bg=BG).pack(side="left")
+        tk.Label(top, text=f"#{e.get('channel_name', '?')} · as {who}", font=FONT_SM, fg=MUTED, bg=BG).pack(side="right")
+        tk.Label(row, text=e.get("question", ""), font=FONT, fg=TEXT, bg=BG, anchor="w", justify="left",
+                 wraplength=360).pack(fill="x", pady=(4, 0))
+        opts = " · ".join(e.get("options", []))
+        tk.Label(row, text=opts, font=FONT_SM, fg=MUTED, bg=BG, anchor="w", justify="left",
+                 wraplength=360).pack(fill="x")
+        if e.get("error"):
+            tk.Label(row, text=e["error"], font=FONT_SM, fg=RED, bg=BG, anchor="w").pack(fill="x")
+        btns = tk.Frame(row, bg=BG)
+        btns.pack(fill="x", pady=(4, 0))
+        small = dict(font=FONT_SM, fg=MUTED, bg=BG, activebackground=PANEL_HI, relief="flat", bd=0, cursor="hand2")
+        if e.get("status") == "pending":
+            tk.Button(btns, text="Cancel", activeforeground=RED, command=lambda: self._schedule_cancel(e),
+                      **small).pack(side="right")
+            tk.Button(btns, text="Edit", activeforeground=PINK, command=lambda: self._schedule_edit(e),
+                      **small).pack(side="right", padx=(0, 8))
+        else:
+            tk.Button(btns, text="Remove", activeforeground=RED,
+                      command=lambda: (scheduled_polls.remove(e["id"]), self._refresh_schedule(force=True)),
+                      **small).pack(side="right")
+            tk.Button(btns, text="Reuse", activeforeground=PINK, command=lambda: self._schedule_edit(e, keep=True),
+                      **small).pack(side="right", padx=(0, 8))
+
+    def _schedule_cancel(self, e: dict):
+        if not messagebox.askyesno("Cancel poll?", f"Cancel this scheduled poll?\n\n{e.get('question')}"):
+            return
+        scheduled_polls.cancel(e["id"])
+        self._refresh_schedule(force=True)
+
+    def _schedule_edit(self, e: dict, keep: bool = False):
+        """Load a poll back into the editor. Editing an upcoming one takes it
+        off the schedule — scheduling again puts the edited version back."""
+        if not keep:
+            scheduled_polls.remove(e["id"])
+            self.planner_status.config(text="taken off the schedule — hit Schedule to put it back", fg=YELLOW)
+        label = f"#{e.get('channel_name')}"
+        if label in self._planner_channel_by_label:
+            self.planner_channel_combo.set(label)
+        self._planner_bot.set(e.get("bot", "z"))
+        self._planner_fill(e.get("question", ""), e.get("options", []), e.get("duration_hours", 24),
+                           e.get("allow_multiselect", False))
+        if not keep:
+            when = datetime.datetime.fromtimestamp(e.get("post_at", time.time()))
+            self.planner_date.delete(0, "end")
+            self.planner_date.insert(0, when.strftime("%Y-%m-%d"))
+            self.planner_time.delete(0, "end")
+            self.planner_time.insert(0, when.strftime("%H:%M"))
+        self._planner_update_when()
+        self._refresh_schedule(force=True)
+
+
     # ---- watcher process ----
     def start_watcher(self):
         if self.pids:
@@ -1476,8 +2103,13 @@ class Panel(tk.Tk):
     def _poll_procs_once(self):
         def work():
             pids = _watcher_pids()
-            self.after(0, lambda: setattr(self, "pids", pids))
+            self.after(0, lambda: self._set_pids(pids))
         threading.Thread(target=work, daemon=True).start()
+
+    def _set_pids(self, pids: list[int]):
+        if set(pids) != set(self.pids):
+            self._pids_since = time.time()
+        self.pids = pids
 
     def _poll_procs(self):
         self._poll_procs_once()
@@ -1511,6 +2143,13 @@ class Panel(tk.Tk):
             pill, color = "ONLINE", BLUE
             ago = int(time.time() - self.status.get("heartbeat", 0))
             doing = f"Idle \u2014 watching the server (last scan {ago}s ago)."
+        elif self.pids and time.time() - self._pids_since > WATCHER_STUCK_SECONDS:
+            pill, color = "STUCK", RED
+            mins = int((time.time() - self.status.get("heartbeat", self._pids_since)) // 60)
+            doing = (
+                f"Watcher is running but hasn't scanned in {mins}m — if its console window "
+                "says “Select”, click it and press Esc; otherwise Stop + Start."
+            )
         elif self.pids:
             pill, color = "STARTING", YELLOW
             doing = "Watcher is running; waiting for Z's first scan\u2026"

@@ -228,11 +228,30 @@ def check_instagram(handle: str) -> list[dict]:
             params={"username": handle}, headers=headers, cookies=cookies, timeout=_HTTP_TIMEOUT,
         )
         if resp.status_code != 200:
-            _warn_once(
-                f"ig:{handle}",
-                f"Instagram check for @{handle} returned {resp.status_code} — "
-                "Instagram may be rate-limiting or blocking this endpoint",
-            )
+            # The body says what's actually wrong (e.g. require_login: true
+            # means logged-out requests are refused outright, which is a
+            # different problem from a rate limit and needs a different fix).
+            # Earlier this only logged a guess, so the real reason was lost.
+            try:
+                body = resp.json()
+            except ValueError:
+                body = {}
+            if body.get("require_login"):
+                # Two different situations, two different fixes. With no
+                # session configured, logged-out requests are simply refused.
+                # With one configured, it's been rejected — usually because
+                # it expired or you logged out / changed your password.
+                if _IG_SESSION_ID:
+                    msg = (f"Instagram rejected SOCIAL_IG_SESSIONID for @{handle} — it has expired "
+                           "or been invalidated. Log into instagram.com, copy a fresh sessionid "
+                           "cookie into .env, and restart the watcher.")
+                else:
+                    msg = (f"Instagram needs a login for @{handle} (logged-out requests are refused). "
+                           "Set SOCIAL_IG_SESSIONID in .env to your own sessionid cookie and restart the watcher.")
+            else:
+                msg = (f"Instagram check for @{handle} returned {resp.status_code}: "
+                       f"{body.get('message') or resp.text[:120]}")
+            _warn_once(f"ig:{handle}", msg)
             return []
         edges = (
             resp.json().get("data", {}).get("user", {})

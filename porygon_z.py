@@ -35,10 +35,12 @@ import discord_roles
 import quotes
 import z_brain
 import porygon_names
+import z_style
 import z_bits
 import z_live
 import z_poll_modes
 import z_polls
+import z_schedule
 import z_profiles
 
 logger = logging.getLogger("porygon.porygon_z")
@@ -100,6 +102,8 @@ def _record_reply(author: dict, channel_name: str, kind: str, text: str, prose: 
     z_live.record_reply(author, channel_name, kind, text)
     if prose and z_brain.FATHER_USER_ID and author.get("id") == z_brain.FATHER_USER_ID:
         porygon_names.record_from_line(text)
+    if prose:
+        z_style.record(text)
 
 
 def _load_recent_replies(limit: int) -> list[str]:
@@ -820,6 +824,61 @@ def _handle_poll_command(
     return True
 
 
+def _handle_schedule_command(
+    msg: dict, channel_id: str, channel_name: str, token: str, z_token: str, exclude_ids: frozenset,
+) -> bool:
+    """`!schedule <criteria>`. Returns True if it was a schedule command
+    (handled or rejected), so the caller stops processing the message."""
+    if not z_schedule.is_command(msg.get("content") or ""):
+        return False
+    try:
+        criteria = z_schedule.parse_command(msg.get("content") or "")
+    except z_schedule.ScheduleCommandError as e:
+        discord_roles.post_reply(channel_id, msg["id"], z_token, str(e))
+        return True
+
+    print(f"[Porygon Z] !schedule picked up ({channel_id}/{msg['id']}) — {criteria!r}")
+    z_live.start_processing(msg.get("author", {}), channel_name, "!schedule")
+    try:
+        with z_brain.track_usage() as usage:
+            try:
+                slots = z_schedule.fetch_best_times()
+            except z_schedule.ScheduleDataError as e:
+                discord_roles.post_reply(channel_id, msg["id"], z_token, str(e))
+                activity_log.log("❌ Porygon Z couldn't read the availability sheet for !schedule")
+                return True
+            history = z_schedule.gather_context(channel_id, token, msg["id"], exclude_ids)
+            plan = z_schedule.plan(criteria, history, slots)
+    finally:
+        z_live.finish_processing()
+
+    if not plan:
+        logger.warning(f"Schedule planning came back empty ({channel_id}/{msg['id']})")
+        activity_log.log("\U0001f47e Porygon Z couldn't build a schedule poll (API/parsing trouble)")
+        discord_roles.post_reply(channel_id, msg["id"], z_token, "couldn't work out a schedule for that. try again?")
+        _report_cost("!schedule (failed)", usage, z_token)
+        return True
+
+    discord_roles.post_reply(channel_id, msg["id"], z_token, _for_post(plan.intro))
+    posted = discord_roles.post_poll(
+        channel_id, z_token, plan.poll.question, plan.poll.options,
+        duration_hours=plan.poll.duration_hours, allow_multiselect=plan.poll.allow_multiselect,
+    )
+    if not posted:
+        activity_log.log("❌ Porygon Z's !schedule poll failed to post")
+        _report_cost("!schedule (post failed)", usage, z_token)
+        return True
+
+    logger.info(f"!schedule poll posted ({channel_id}): {plan.poll.question}")
+    activity_log.log(f"\U0001f4c5 Porygon Z filed a schedule poll (#{channel_name}): {plan.poll.question}")
+    _record_reply(
+        msg.get("author", {}), channel_name, "!schedule", f"{plan.poll.question}: {', '.join(plan.poll.options)}",
+        prose=False,
+    )
+    _report_cost(f"!schedule ({plan.model})", usage, z_token)
+    return True
+
+
 def _handle_poll_answer(
     msg: dict, channel_id: str, channel_name: str, token: str, z_token: str,
     exclude_ids: frozenset, pending: dict, watched: dict,
@@ -1122,6 +1181,7 @@ _TUNABLES = {
 _TUNABLE_DEFAULTS = {key: getattr(mod, attr) for key, (mod, attr, _) in _TUNABLES.items()}
 _SWITCH_DEFAULTS = {
     "paused": False, "unprompted": True, "six": True, "quote_callback": True, "polls": True,
+    "schedule": True,
 }
 
 
@@ -1257,6 +1317,11 @@ def scan_and_process(bot_user_id: str) -> bool:
                         pending_polls, watched_polls,
                     ):
                         return
+
+                if brain_ready and switches["schedule"] and _handle_schedule_command(
+                    msg, channel_id, channel_name, token, z_token, bot_ids,
+                ):
+                    return
 
                 if brain_ready and _is_named_summon(msg, z_user_id, guild_id, token):
                     if _handle_direct_summon(
