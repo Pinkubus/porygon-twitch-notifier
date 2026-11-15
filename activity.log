@@ -7786,3 +7786,6 @@
 [2026-11-13 19:59:39Z] ⚠️ Couldn't fetch 🐈 reactions — role sync skipped this cycle
 [2026-11-13 19:59:39Z] ⚠️ Couldn't fetch 🎪 reactions — role sync skipped this cycle
 [2026-11-14 22:09:28Z] ✅ Twitch: erodite went live — Discord notified
+[2026-11-15 02:36:16Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 80.5s
+[2026-11-15 02:37:14Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 57.6s
+[2026-11-15 02:37:14Z] 👾 Porygon Z replied unprompted
