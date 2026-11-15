@@ -7856,3 +7856,45 @@
     <head>
         <meta charset="utf-8">
         <meta 
+[2026-11-15 05:56:49Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 50.6s
+[2026-11-15 05:58:26Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 46.9s
+[2026-11-15 05:59:10Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 44.0s
+[2026-11-15 06:10:13Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 40.2s
+[2026-11-15 06:10:59Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 45.8s
+[2026-11-15 06:11:45Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 46.3s
+[2026-11-15 06:12:21Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 36.4s
+[2026-11-15 06:12:55Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 25.4s
+[2026-11-15 06:13:38Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 26.1s
+[2026-11-15 06:14:04Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 51.7s
+[2026-11-15 06:14:35Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 31.9s
+[2026-11-15 06:15:32Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 26.4s
+[2026-11-15 06:15:42Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 36.9s
+[2026-11-15 06:17:08Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 42.1s
+[2026-11-15 06:17:36Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 27.8s
+[2026-11-15 06:18:37Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 34.0s
+[2026-11-15 06:18:58Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 20.7s
+[2026-11-15 06:19:25Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 22.8s
+[2026-11-15 06:20:04Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 29.1s
+[2026-11-15 06:20:40Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 36.6s
+[2026-11-15 06:21:58Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 42.7s
+[2026-11-15 06:22:24Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 26.4s
+[2026-11-15 06:23:08Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 20.7s
+[2026-11-15 06:23:23Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 35.3s
+[2026-11-15 06:24:01Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 37.5s
+[2026-11-15 06:24:47Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 23.2s
+[2026-11-15 06:25:03Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 38.8s
+[2026-11-15 06:25:29Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 26.4s
+[2026-11-15 06:26:37Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 48.3s
+[2026-11-15 06:27:25Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 48.1s
+[2026-11-15 06:28:17Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 51.8s
+[2026-11-15 06:28:46Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 29.4s
+[2026-11-15 06:51:46Z] ⚠️ Instagram check for @turtle.prism returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
+[2026-11-15 06:51:47Z] ⚠️ Instagram check for @lxzycxlm returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
