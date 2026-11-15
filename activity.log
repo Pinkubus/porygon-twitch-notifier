@@ -7943,3 +7943,11 @@
     <head>
         <meta charset="utf-8">
         <meta 
+[2026-11-15 07:12:50Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 69.8s
+[2026-11-15 07:13:13Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 23.5s
+[2026-11-15 07:14:16Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 26.3s
+[2026-11-15 07:14:19Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 28.6s
+[2026-11-15 07:15:02Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 28.8s
+[2026-11-15 16:02:27Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 33.6s
+[2026-11-15 16:03:04Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 28.7s
+[2026-11-15 16:03:23Z] 👾 Porygon Z replied unprompted
