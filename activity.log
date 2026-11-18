@@ -7967,3 +7967,9 @@
 [2026-11-17 17:25:05Z] 👾 Porygon Z replied unprompted
 [2026-11-17 18:18:20Z] ⚠️ Couldn't fetch 🎨 reactions — role sync skipped this cycle
 [2026-11-18 00:12:50Z] ✅ Twitch: erodite went live — Discord notified
+[2026-11-18 04:32:29Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 22.3s
+[2026-11-18 04:32:29Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 23.0s
+[2026-11-18 04:32:47Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 20.4s
+[2026-11-18 04:32:55Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 22.9s
+[2026-11-18 04:33:22Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 20.3s
+[2026-11-18 04:33:42Z] 👾 Porygon Z replied unprompted
