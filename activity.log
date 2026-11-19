@@ -7974,3 +7974,40 @@
 [2026-11-18 04:33:22Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 20.3s
 [2026-11-18 04:33:42Z] 👾 Porygon Z replied unprompted
 [2026-11-18 19:09:49Z] ⚠️ Couldn't fetch 🌸 reactions — role sync skipped this cycle
+[2026-11-19 08:53:41Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 20.3s
+[2026-11-19 08:54:18Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 21.1s
+[2026-11-19 08:54:40Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 21.5s
+[2026-11-19 08:59:12Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 43.0s
+[2026-11-19 08:59:46Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 33.5s
+[2026-11-19 09:00:13Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 27.5s
+[2026-11-19 09:01:07Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 32.3s
+[2026-11-19 09:01:12Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 38.3s
+[2026-11-19 09:01:14Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 39.7s
+[2026-11-19 09:01:32Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 20.4s
+[2026-11-19 09:01:48Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 33.9s
+[2026-11-19 09:01:48Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 41.5s
+[2026-11-19 09:03:42Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 35.3s
+[2026-11-19 09:03:51Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 43.8s
+[2026-11-19 09:04:12Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 21.2s
+[2026-11-19 09:04:15Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 32.2s
+[2026-11-19 09:04:39Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 20.2s
+[2026-11-19 09:05:42Z] 🕰️ Watcher was offline ~1512 min — checking for missed jugglez summons since 2026-11-18 07:52 UTC
+[2026-11-19 09:06:09Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 23.5s
+[2026-11-19 09:06:13Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 27.6s
+[2026-11-19 09:06:30Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 44.5s
+[2026-11-19 09:07:23Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 53.1s
+[2026-11-19 09:07:38Z] 👾 Porygon Z replied unprompted
+[2026-11-19 09:07:51Z] ✨ Porygon Z callback fired
+[2026-11-19 09:09:01Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 51.1s
+[2026-11-19 09:09:37Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 35.2s
+[2026-11-19 09:10:02Z] 👾 Porygon Z replied (direct summon)
+[2026-11-19 09:11:42Z] ⚠️ Instagram check for @turtle.prism returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
+[2026-11-19 09:11:42Z] ⚠️ Instagram check for @lxzycxlm returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
