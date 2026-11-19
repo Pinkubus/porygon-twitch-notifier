@@ -8033,3 +8033,16 @@
 [2026-11-19 19:08:00Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 27.1s
 [2026-11-19 19:08:38Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 26.8s
 [2026-11-19 19:08:39Z] 👾 Porygon Z replied (direct summon)
+[2026-11-19 20:57:42Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 30.8s
+[2026-11-19 20:58:12Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 30.6s
+[2026-11-19 20:58:38Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 25.5s
+[2026-11-19 20:58:58Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 20.1s
+[2026-11-19 20:59:42Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 23.9s
+[2026-11-19 21:01:10Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 20.2s
+[2026-11-19 21:01:31Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 21.0s
+[2026-11-19 21:01:54Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 23.2s
+[2026-11-19 21:02:18Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 23.3s
+[2026-11-19 21:02:45Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 27.3s
+[2026-11-19 21:03:24Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 23.5s
+[2026-11-19 21:03:47Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 22.8s
+[2026-11-19 21:04:30Z] 🐌 Slow Anthropic call: memory_learn on claude-sonnet-5 took 20.3s
