@@ -8022,3 +8022,9 @@
     <head>
         <meta charset="utf-8">
         <meta 
+[2026-11-19 17:16:22Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 22.7s
+[2026-11-19 17:16:25Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 25.9s
+[2026-11-19 17:16:42Z] 🐌 Slow Anthropic call: compose_batch on claude-sonnet-5 took 42.4s
+[2026-11-19 17:17:39Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 57.8s
+[2026-11-19 17:18:17Z] 🐌 Slow Anthropic call: score_batch on claude-sonnet-5 took 28.1s
+[2026-11-19 17:18:18Z] 👾 Porygon Z replied (direct summon)
