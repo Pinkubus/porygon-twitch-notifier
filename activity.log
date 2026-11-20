@@ -8057,3 +8057,14 @@
     <head>
         <meta charset="utf-8">
         <meta 
+[2026-11-20 00:24:31Z] 🐌 Slow Anthropic call: self_learn on claude-sonnet-5 took 42.1s
+[2026-11-20 00:26:08Z] ⚠️ Instagram check for @turtle.prism returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
+[2026-11-20 00:26:08Z] ⚠️ Instagram check for @lxzycxlm returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
