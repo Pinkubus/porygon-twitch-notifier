@@ -8179,3 +8179,18 @@
 [2026-11-20 01:11:41Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 22.0s
 [2026-11-20 01:11:45Z] 👾 Porygon Z replied unprompted
 [2026-11-20 01:12:23Z] 🐌 Slow Claude Code call: style_update on claude-haiku-4-5-20251001 took 33.2s
+[2026-11-20 01:13:01Z] 🕰️ Watcher was offline ~3 min — checking for missed jugglez summons since 2026-11-20 01:09 UTC
+[2026-11-20 01:13:55Z] 🐌 Slow Claude Code call: memory_pick on claude-haiku-4-5-20251001 took 28.9s
+[2026-11-20 01:14:24Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 29.3s
+[2026-11-20 01:14:37Z] 👾 Porygon Z replied (direct summon)
+[2026-11-20 01:16:18Z] 👾 Porygon Z replied (direct summon)
+[2026-11-20 01:17:38Z] ⚠️ Instagram check for @turtle.prism returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
+[2026-11-20 01:17:38Z] ⚠️ Instagram check for @lxzycxlm returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
