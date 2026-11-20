@@ -1791,6 +1791,12 @@ class Panel(tk.Tk):
         sb = ttk.Scrollbar(log_frame, orient="vertical", command=self.dream_log.yview,
                            style="Z.Vertical.TScrollbar")
         self.dream_log.configure(yscrollcommand=sb.set)
+        # Stick to the newest thought unless father scrolls up to read.
+        self._dream_follow = True
+        for ev in ("<MouseWheel>", "<Button-4>", "<Button-5>", "<Prior>", "<Next>", "<Up>", "<Down>"):
+            self.dream_log.bind(ev, self._dream_user_scrolled, add="+")
+        sb.bind("<ButtonRelease-1>", self._dream_user_scrolled, add="+")
+        sb.bind("<B1-Motion>", self._dream_user_scrolled, add="+")
         sb.pack(side="right", fill="y")
         self.dream_log.pack(side="left", fill="both", expand=True)
         for tag, kw in (("head", dict(foreground=PINK, font=("Segoe UI Semibold", 11), spacing1=8)),
@@ -1827,14 +1833,21 @@ class Panel(tk.Tk):
         self.after(500, self._dream_poll)
 
     def _dream_write(self, text: str, tag: str = "") -> None:
-        at_end = self.dream_log.yview()[1] > 0.98
         self.dream_log.config(state="normal")
         self.dream_log.insert("end", text, tag)
         self.dream_log.config(state="disabled")
-        if at_end:
-            self.dream_log.see("end")
+        if self._dream_follow:
+            self.dream_log.yview_moveto(1.0)
+
+    def _dream_user_scrolled(self, *args):
+        """Scrolling up to read pauses the auto-follow; scrolling back to the
+        bottom resumes it."""
+        def check():
+            self._dream_follow = self.dream_log.yview()[1] >= 0.999
+        self.after(30, check)
 
     def _dream_clear(self):
+        self._dream_follow = True
         self.dream_log.config(state="normal")
         self.dream_log.delete("1.0", "end")
         self.dream_log.config(state="disabled")
