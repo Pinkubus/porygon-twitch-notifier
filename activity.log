@@ -8248,3 +8248,6 @@
         <meta charset="utf-8">
         <meta 
 [2026-11-20 20:01:59Z] ✅ Twitch: erodite went live — Discord notified
+[2026-11-20 20:17:59Z] 🐌 Slow Claude Code call: memory_pick on claude-haiku-4-5-20251001 took 45.7s
+[2026-11-20 20:18:20Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 21.2s
+[2026-11-20 20:18:35Z] 👾 Porygon Z reacted instead of replying
