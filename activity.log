@@ -8098,3 +8098,16 @@
     <head>
         <meta charset="utf-8">
         <meta 
+[2026-11-20 00:45:58Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 33.4s
+[2026-11-20 00:46:02Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 20.5s
+[2026-11-20 00:47:17Z] 🐌 Slow Claude Code call: score_batch on claude-sonnet-5 took 55.1s
+[2026-11-20 00:48:41Z] ⚠️ Instagram check for @turtle.prism returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
+[2026-11-20 00:48:41Z] ⚠️ Instagram check for @lxzycxlm returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
