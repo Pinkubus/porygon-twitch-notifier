@@ -32,3 +32,6 @@ panel_test.log
 runs/
 # Owner's Test Chat ratings — private test messages, local only.
 z_owner_ratings.json
+z_self.json
+z_name_aliases.json
+z_approve.log

@@ -224,6 +224,56 @@ something of his own. With two or more files, `Z_SPEECH_MIX_RATE` (default
 0.4) of those composes get two half-length excerpts from different files to
 blend.
 
+### Influence registers
+
+A transcript in `z_speech/` that also has a `<same name>.style.md` file
+becomes an influence register. The `.style.md` file is a short description of
+that source's comedic delivery plus a few invented example lines. About a
+third of every batch (`Z_INFLUENCE_SHARE`, default 0.33) is written in one or
+two of these, split between sources. Each of those drafts gets its own
+transcript sample, and the influence note is placed at the very end of the
+system prompt. That group's batch instructions also drop the usual
+borrowed-system and three-moves requirements, which were overriding the
+delivery and turning every attempt back into deadpan advice. The rule is no
+quotes, catchphrases or lifted stories, but someone who knows the source
+should feel it. The rubric's *Borrowed deliveries* section tells the judge
+not to mark these down just for being louder or cruder than the deadpan.
+Influence drafts are skipped in delicate channels and in encouraging replies.
+
+### Memories and personal replies
+
+`z_profiles.py` scans the server every 12 hours (`Z_PROFILE_SCAN_HOURS`). Each
+channel remembers where the last scan stopped, so every message since then
+gets read, up to `Z_PROFILE_MAX_PAGES` pages of 100 (default 10). Before this,
+a scan only saw the newest 100 messages, and busy channels scrolled past
+those in hours. `z_memory.learn` turns each person's new messages into tagged
+memories plus a two-sentence summary, saved in `z_user_profiles.json`
+(gitignored). Each memory is one specific, teasable fact with one to three
+tags: mishap, habit, trait, interest, project, pet, food, work, running-joke,
+catchphrase, brag, rivalry, place. Repeats reinforce an existing memory, and
+each person keeps at most `Z_MEMORY_MAX` (default 60).
+
+Health, mental health, relationships, money, identity and addresses are
+never recorded. Vent channels are read only for people on
+`Z_VENT_MEMORY_USERS` (comma-separated ids; default just father), and only for
+light everyday quirks they treat as a joke. Those memories are flagged
+`gentle`, and Z is told to tease the quirk itself and never anything around
+it.
+
+At reply time, if Z remembers at least two things about the person being
+answered, `z_memory.pick` (a cheap Haiku call) decides which kind of memory to
+dig for and picks two to four that fit this message. It skips memories used in
+the last `Z_MEMORY_REUSE_HOURS` (72). A "personal" draft group (about 2 of 12,
+`Z_PERSONAL_SHARE`) then writes callbacks, cutting jabs and trait twists built
+on them. The judge sees the same memories as background, so a callback isn't
+mistaken for a random line. When a personal reply posts, its memories are
+marked used. Vent channels and encouraging replies never get personal drafts.
+
+Test Chat has a **Speaking as** dropdown (anyone with a profile), a **Personal
+mode** checkbox (about 60% of drafts personal, and the reply shown is the
+best personal one), and a **Learn now** button that runs the scan
+immediately. The memories dug for each reply are listed under it.
+
 ### Running style note
 
 `z_style.py` keeps Z's own style from wandering reply to reply. After every

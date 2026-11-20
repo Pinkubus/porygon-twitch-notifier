@@ -26,6 +26,7 @@ import re
 import sys
 import calendar
 import json
+import threading
 import logging
 import time
 from typing import Optional
@@ -90,7 +91,9 @@ def _for_post(text: str) -> str:
     every ordinary !z/summon/unprompted reply, in the room, in real time
     ("LMAO it also sent the same response to the other server"), which read
     as Z double-posting rather than the intended one-way status mirror."""
-    return z_brain.glitchify(porygon_names.funkify_in_text(text))
+    # @Name tags become real mentions first, so the name dressing and the
+    # glitching (letters only) can't mangle them.
+    return z_brain.glitchify(porygon_names.funkify_in_text(z_brain.resolve_mentions(text)))
     return posted
 
 
@@ -100,10 +103,56 @@ def _record_reply(author: dict, channel_name: str, kind: str, text: str, prose: 
     his names too (porygon_names). `prose=False` for the fixed/synthesized
     lines, which never name anyone."""
     z_live.record_reply(author, channel_name, kind, text)
-    if prose and z_brain.FATHER_USER_ID and author.get("id") == z_brain.FATHER_USER_ID:
-        porygon_names.record_from_line(text)
-    if prose:
+    if not prose:
+        return
+    # Both of these make a model call (30-60s through Claude Code). Run them
+    # off the main loop so the next summon never queues behind them.
+    is_father = bool(z_brain.FATHER_USER_ID and author.get("id") == z_brain.FATHER_USER_ID)
+    _run_in_background(_after_reply_chores, text, is_father)
+
+
+def _after_reply_chores(text: str, is_father: bool) -> None:
+    if is_father:
+        try:
+            porygon_names.record_from_line(text)
+        except Exception as e:
+            logger.warning(f"Name note failed: {e}")
+    try:
         z_style.record(text)
+    except Exception as e:
+        logger.warning(f"Style note failed: {e}")
+
+
+_bg_lock = threading.Lock()
+
+
+def _run_in_background(fn, *args) -> None:
+    """Fire-and-forget on a daemon thread, one chore at a time (they write
+    shared JSON files)."""
+    def run():
+        with _bg_lock:
+            fn(*args)
+    threading.Thread(target=run, daemon=True).start()
+
+
+_scan_running = threading.Event()
+
+
+def _profile_scan_in_background(bot_ids: set[str]) -> None:
+    """The 12-hourly people/self memory scan takes minutes of model calls;
+    it runs beside the main loop instead of stalling it."""
+    if _scan_running.is_set() or not z_profiles.due(z_brain.load_profiles()):
+        return
+    _scan_running.set()
+
+    def run():
+        try:
+            z_profiles.scan(bot_ids)
+        except Exception as e:
+            logger.warning(f"Profile scan failed: {e}")
+        finally:
+            _scan_running.clear()
+    threading.Thread(target=run, daemon=True).start()
 
 
 def _load_recent_replies(limit: int) -> list[str]:
@@ -299,9 +348,156 @@ def _already_replied_to(channel_id: str, msg_id: str, token: str) -> bool:
     return False
 
 
+# --- father's approval popup ----------------------------------------------------
+# When father summons Z (an @/nickname/reply, or a jugglez react), a small
+# window (z_approve.py) pops up for Z_APPROVE_SECONDS: Enter opens a review
+# of the drafted line with redo/re-roll; Esc or the countdown lets it post.
+APPROVE_SUMMONS = os.environ.get("Z_APPROVE_SUMMONS", "1").strip().lower() not in ("0", "false", "no", "off")
+APPROVE_SECONDS = int(os.environ.get("Z_APPROVE_SECONDS", 5))
+_APPROVE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "z_approve.py")
+
+
+class ApprovalSession:
+    def __init__(self, info: dict):
+        import queue
+        import subprocess
+        import sys as _sys
+        self._queue: "queue.Queue[dict]" = queue.Queue()
+        # The popup's own crashes land in z_approve.log instead of vanishing.
+        self._errlog = open(os.path.join(os.path.dirname(_APPROVE_SCRIPT), "z_approve.log"), "a", encoding="utf-8")
+        self.proc = subprocess.Popen(
+            [_sys.executable, _APPROVE_SCRIPT, json.dumps(info)],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self._errlog,
+            text=True, encoding="utf-8", creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        threading.Thread(target=self._read, daemon=True).start()
+
+    def _read(self):
+        for raw in self.proc.stdout:
+            try:
+                self._queue.put(json.loads(raw))
+            except ValueError:
+                continue
+        self._queue.put({"action": "closed"})
+
+    def _next(self, timeout: float) -> dict:
+        import queue
+        try:
+            return self._queue.get(timeout=timeout)
+        except queue.Empty:
+            return {"action": "timeout"}
+
+    def _write(self, obj: dict):
+        try:
+            self.proc.stdin.write(json.dumps(obj) + "\n")
+            self.proc.stdin.flush()
+        except (OSError, ValueError):
+            pass
+
+    def wants_review(self) -> bool:
+        first = self._next(APPROVE_SECONDS + 20).get("action")
+        if first == "closed":
+            code = self.proc.poll()
+            logger.warning(f"Approval popup closed without answering (exit {code}); see z_approve.log")
+            if code:
+                activity_log.log(f"⚠️ Approval popup crashed (exit {code}); see z_approve.log")
+        return first == "review"
+
+    def propose(self, line: str, note: str = ""):
+        self._write({"line": line, "note": note})
+
+    def status(self, text: str, ready: bool = False):
+        self._write({"status": text, "ready": ready})
+
+    def next_action(self) -> dict:
+        # Left open and forgotten: post what's there after 15 minutes.
+        return self._next(900)
+
+    def close(self):
+        try:
+            self.proc.stdin.close()
+        except OSError:
+            pass
+        try:
+            self.proc.wait(timeout=3)
+        except Exception:
+            self.proc.kill()
+        for f in (self.proc.stdout, self._errlog):
+            try:
+                f.close()
+            except Exception:
+                pass
+
+
+def _maybe_start_approval(invoker_id: str, target: dict, channel_name: str, kind: str) -> Optional[ApprovalSession]:
+    if not (APPROVE_SUMMONS and z_brain.FATHER_USER_ID and invoker_id == z_brain.FATHER_USER_ID):
+        return None
+    author = target.get("author") or {}
+    try:
+        return ApprovalSession({
+            "seconds": APPROVE_SECONDS, "kind": kind, "channel": channel_name,
+            "who": author.get("global_name") or author.get("username") or "someone",
+            "message": (target.get("content") or "").strip(),
+        })
+    except Exception as e:
+        logger.warning(f"Approval popup failed to open: {e}")
+        return None
+
+
+def _review_reply(
+    session: Optional[ApprovalSession], reply: str, context: str, target: dict, channel_name: str,
+    user_ids: set[str], reply_count: int, recent_replies: list[str], encouraging: bool,
+) -> Optional[str]:
+    """The line to post after father's review, or None if he chose Don't
+    send. Without a session, or if he let it rip, that's just `reply`."""
+    if not session:
+        return reply
+    try:
+        if not session.wants_review():
+            return reply
+        line, revisions = reply, []
+        session.propose(line)
+        while True:
+            act = session.next_action()
+            kind = act.get("action")
+            if kind == "send":
+                final = (act.get("line") or "").strip() or line
+                if final != line:
+                    logger.info(f"Father edited the reply: {line!r} -> {final!r}")
+                return final
+            if kind == "cancel":
+                return None
+            if kind in ("skip", "closed", "timeout"):
+                return line
+            if kind == "feedback":
+                revisions.append(((act.get("line") or line).strip(), act.get("feedback", "")))
+                new = z_brain.revise_reply(context, target, channel_name, user_ids, revisions, recent_replies)
+                if new:
+                    line = new
+                    session.propose(line, "revised with your note. Enter sends it.")
+                else:
+                    session.status("the revision came back empty. try again?", ready=True)
+            elif kind == "reroll":
+                tried = list(recent_replies) + [act.get("line") or line] + [r for r, _ in revisions]
+                new = z_brain.compose_reply(
+                    context, target, channel_name, reply_count, user_ids,
+                    recent_replies=tried, encouraging=encouraging,
+                )
+                if new:
+                    line, revisions = new, []
+                    session.propose(line, "fresh roll. Enter sends it.")
+                else:
+                    session.status("the re-roll came back empty. try again?", ready=True)
+    except Exception as e:
+        logger.warning(f"Approval review failed, posting the original: {e}")
+        return reply
+    finally:
+        session.close()
+
+
 def _answer_as_command(
     target: dict, channel_id: str, channel_name: str, guild_id: str, token: str, z_token: str,
-    reply_count: int, recent_replies: list[str], kind: str,
+    reply_count: int, recent_replies: list[str], kind: str, invoker_id: str = "",
 ) -> bool:
     """The shared "always answers" path behind `!z` and a jugglez-reaction
     summon: acknowledge with Z's own jugglez, draft, post a reply to
@@ -313,6 +509,7 @@ def _answer_as_command(
     discord_roles.add_own_reaction(channel_id, reply_to_id, _z_react_emoji(guild_id, token), z_token)
     print(f"[Porygon Z] {kind} picked up ({channel_id}/{reply_to_id}) — drafting a reply...")
     target_author = target.get("author", {})
+    approval = _maybe_start_approval(invoker_id, target, channel_name, kind)
     since = z_live.start_processing(target_author, channel_name, kind)
     try:
         context, user_ids = z_brain.build_context(channel_id, target, token)
@@ -323,6 +520,16 @@ def _answer_as_command(
             progress_cb=progress_cb, encouraging=encouraging,
         )
         finish_progress(reply)
+        if reply:
+            reply = _review_reply(approval, reply, context, target, channel_name, user_ids,
+                                  reply_count, recent_replies, encouraging)
+            if reply is None:
+                logger.info(f"{kind} reply held back by father ({channel_id}/{reply_to_id})")
+                activity_log.log(f"\U0001f6d1 Porygon Z's {kind} reply held back from the approval popup")
+                discord_roles.remove_own_reaction(channel_id, reply_to_id, _z_react_emoji(guild_id, token), z_token)
+                return False
+        elif approval:
+            approval.close()
     finally:
         z_live.finish_processing()
     if not reply:
@@ -503,7 +710,7 @@ def _handle_reaction_summon(
     _reaction_checked.pop(f"{msg['id']}:{emoji.split(':')[-1]}", None)
     return _answer_as_command(
         msg, channel_id, channel.get("name", ""), guild_id, token, z_token,
-        reply_count, recent_replies, "jugglez",
+        reply_count, recent_replies, "jugglez", invoker_id=reactor,
     )
 
 
@@ -1071,6 +1278,7 @@ def _handle_direct_summon(
         return False
     discord_roles.add_own_reaction(channel_id, msg["id"], _z_react_emoji(guild_id, token), z_token)
     print(f"[Porygon Z] direct summon picked up ({channel_id}/{msg['id']}) \u2014 drafting a reply...")
+    approval = _maybe_start_approval((msg.get("author") or {}).get("id", ""), msg, channel_name, "summon")
     since = z_live.start_processing(msg.get("author", {}), channel_name, "summon")
     try:
         context, user_ids = z_brain.build_context(channel_id, msg, token)
@@ -1081,6 +1289,16 @@ def _handle_direct_summon(
             progress_cb=progress_cb, encouraging=encouraging,
         )
         finish_progress(reply)
+        if reply:
+            reply = _review_reply(approval, reply, context, msg, channel_name, user_ids,
+                                  reply_count, recent_replies, encouraging)
+            if reply is None:
+                logger.info(f"Direct summon reply held back by father ({channel_id}/{msg['id']})")
+                activity_log.log("\U0001f6d1 Porygon Z's summon reply held back from the approval popup")
+                discord_roles.remove_own_reaction(channel_id, msg["id"], _z_react_emoji(guild_id, token), z_token)
+                return False
+        elif approval:
+            approval.close()
     finally:
         z_live.finish_processing()
     if not reply:
@@ -1249,10 +1467,7 @@ def scan_and_process(bot_user_id: str) -> bool:
     total_channels = 0
 
     if brain_ready:
-        try:
-            z_profiles.scan({bot_user_id, z_user_id})
-        except Exception as e:
-            logger.warning(f"Profile scan failed: {e}")
+        _profile_scan_in_background({bot_user_id, z_user_id})
 
     for guild_id in discord_roles.configured_guild_ids():
         channels = discord_roles.get_guild_text_channels(guild_id, token)

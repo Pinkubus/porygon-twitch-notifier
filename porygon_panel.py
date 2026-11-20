@@ -70,6 +70,8 @@ import porygon_z  # noqa: E402
 import scheduled_polls  # noqa: E402
 import z_brain  # noqa: E402
 import z_live  # noqa: E402
+import z_memory  # noqa: E402
+import z_profiles  # noqa: E402
 
 LOG_FILE = os.path.join(_HERE, "activity.log")
 FEATURES_FILE = feature_requests.REQUESTS_FILE
@@ -280,6 +282,41 @@ def _fetch_text_channels() -> list[tuple[str, str]]:
                 label = f"#{name}"
             out.append((channel["id"], label))
     return out
+
+
+_MESSAGE_LINK_RE = re.compile(r"channels/\d+/(\d+)/(\d+)")
+_ID_PAIR_RE = re.compile(r"^(\d{15,22})[-/ ](\d{15,22})$")
+
+
+def _parse_message_ref(text: str) -> tuple[Optional[str], str]:
+    """(channel_id or None, message_id) from whatever was pasted: a bare
+    message id, Discord's Shift+Copy ID "channel-message" pair, or a full
+    message link. message_id is "" when there's nothing usable."""
+    text = (text or "").strip()
+    m = _MESSAGE_LINK_RE.search(text) or _ID_PAIR_RE.match(text)
+    if m:
+        return m.group(1), m.group(2)
+    return None, text if text.isdigit() else ""
+
+
+def _lookup_message(channel_id: str, message_id: str) -> Optional[dict]:
+    """The message, read with the main bot's token or else Z's: either bot
+    may be the only one that can see a given channel."""
+    tokens = [os.environ.get("DISCORD_BOT_TOKEN")]
+    try:
+        tokens.append(porygon_z._z_token())
+    except Exception:
+        pass
+    for token in tokens:
+        if not token:
+            continue
+        try:
+            msg = discord_roles.get_message(channel_id, message_id, token)
+        except Exception:
+            msg = None
+        if msg:
+            return msg
+    return None
 
 
 # A prompt that's nothing but a shortcode — `:porygonspin:` — means "react
@@ -1111,11 +1148,11 @@ class Panel(tk.Tk):
 
         row2 = tk.Frame(body, bg=PANEL)
         row2.pack(fill="x", pady=(8, 0))
-        self.manual_message_id_label = tk.Label(row2, text="Reply to message ID", font=FONT, fg=MUTED, bg=PANEL)
+        self.manual_message_id_label = tk.Label(row2, text="Reply to message ID or link", font=FONT, fg=MUTED, bg=PANEL)
         self.manual_message_id_label.pack(side="left")
         self.manual_message_id = tk.Entry(
             row2, font=FONT_MONO, fg=TEXT, bg=PANEL_HI, insertbackground=TEXT,
-            relief="flat", width=24,
+            relief="flat", width=34,
         )
         self.manual_message_id.pack(side="left", padx=(8, 0), ipady=3)
         self.manual_message_id.bind("<KeyRelease>", self._on_manual_message_id_typed)
@@ -1127,6 +1164,7 @@ class Panel(tk.Tk):
         self.manual_mode_note.config(text=f"({self._manual_mode_default_note})")
         self._manual_resolve_job = None
         self._manual_resolving = False
+        self._manual_search_wanted = False
 
         # Prompt on the left, the line it wrote on the right. Nothing posts
         # until Send, and Send posts what's in the right-hand box.
@@ -1248,17 +1286,62 @@ class Panel(tk.Tk):
         self.manual_message_id_label.config(fg=MUTED if active else DIM)
 
     def _on_manual_channel_picked(self, event=None):
-        """Fires only on a real user pick from the dropdown list — never on
-        the programmatic .set()/.current() calls _manual_channels_loaded
-        makes while populating it — so this is a deliberate "post fresh
-        here" choice, and any message id typed in for a reply no longer
-        applies."""
-        self._set_manual_message_id_active(False)
-        self.manual_mode_note.config(text=f"({self._manual_mode_default_note})", fg=DIM)
+        """A real user pick from the dropdown. With a message id filled in,
+        it says which channel that message is in (and stops any automatic
+        search from overriding the choice); with none, it's where a fresh
+        message goes."""
+        if self._manual_resolve_job:
+            self.after_cancel(self._manual_resolve_job)
+            self._manual_resolve_job = None
+        self._manual_resolving = False
+        self._manual_search_wanted = False
+        _, message_id = _parse_message_ref(self.manual_message_id.get())
+        if not message_id:
+            self.manual_mode_note.config(text=f"({self._manual_mode_default_note})", fg=DIM)
+            return
+        label = self.manual_channel_combo.get()
+        channel_id = self._manual_channel_by_label.get(label)
+        self.manual_mode_note.config(text=f"checking {label}…", fg=MUTED)
+
+        def work():
+            found = _lookup_message(channel_id, message_id) if channel_id else None
+            def done():
+                if _parse_message_ref(self.manual_message_id.get())[1] != message_id \
+                        or self.manual_channel_combo.get() != label:
+                    return
+                if found:
+                    self.manual_mode_note.config(text=f"in {label}", fg=BLUE)
+                else:
+                    self.manual_mode_note.config(text=f"not in {label} (or neither bot can read it)", fg=YELLOW)
+            self.after(0, done)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _manual_select_channel_id(self, channel_id: str) -> str:
+        """Point the dropdown at `channel_id`, adding it if the list doesn't
+        have it (an archived thread, say). Returns its label."""
+        for cid, label in self._manual_channels:
+            if cid == channel_id:
+                self.manual_channel_combo.set(label)
+                return label
+        label = f"#{channel_id} (from link)"
+        self._manual_channels.append((channel_id, label))
+        self._manual_channel_by_label[label] = channel_id
+        self.manual_channel_combo["values"] = [lb for _, lb in self._manual_channels]
+        self.manual_channel_combo.set(label)
+        return label
 
     def _on_manual_message_id_typed(self, event=None):
-        has_id = bool(self.manual_message_id.get().strip())
-        self._set_manual_channel_active(not has_id)
+        link_channel, message_id = _parse_message_ref(self.manual_message_id.get())
+        has_id = bool(message_id)
+        if link_channel:
+            # A link or channel-message pair already says where it lives.
+            if self._manual_resolve_job:
+                self.after_cancel(self._manual_resolve_job)
+                self._manual_resolve_job = None
+            label = self._manual_select_channel_id(link_channel)
+            self.manual_mode_note.config(text=f"in {label}", fg=BLUE)
+            return
         if not has_id:
             self.manual_mode_note.config(text=f"({self._manual_mode_default_note})", fg=DIM)
         elif self.manual_mode_note.cget("text") == f"({self._manual_mode_default_note})":
@@ -1276,24 +1359,21 @@ class Panel(tk.Tk):
         they were just looking at it), then falls back to checking every
         configured channel."""
         self._manual_resolve_job = None
-        message_id = self.manual_message_id.get().strip()
-        if not message_id or not message_id.isdigit():
+        link_channel, message_id = _parse_message_ref(self.manual_message_id.get())
+        if not message_id or link_channel:
             return
         current_id = self._manual_channel_by_label.get(self.manual_channel_combo.get())
         channels = sorted(self._manual_channels, key=lambda c: c[0] != current_id) if current_id else list(self._manual_channels)
         self.manual_mode_note.config(text="finding its channel…", fg=MUTED)
         self._manual_resolving = True
+        self._manual_search_wanted = True
 
         def work():
-            token = os.environ.get("DISCORD_BOT_TOKEN")
             found = None
             for cid, label in channels:
-                try:
-                    if discord_roles.get_message(cid, message_id, token):
-                        found = (cid, label)
-                        break
-                except Exception:
-                    continue
+                if _lookup_message(cid, message_id):
+                    found = (cid, label)
+                    break
             self.after(0, lambda: self._manual_channel_resolved(message_id, found))
 
         threading.Thread(target=work, daemon=True).start()
@@ -1301,14 +1381,15 @@ class Panel(tk.Tk):
     def _manual_channel_resolved(self, for_message_id: str, found: Optional[tuple]):
         self._manual_resolving = False
         # The field may have been edited or cleared while the search ran.
-        if self.manual_message_id.get().strip() != for_message_id:
+        if _parse_message_ref(self.manual_message_id.get())[1] != for_message_id or not self._manual_search_wanted:
             return
         if found:
             _, label = found
             self.manual_channel_combo.set(label)
             self.manual_mode_note.config(text=f"in {label}", fg=BLUE)
         else:
-            self.manual_mode_note.config(text="not found in any channel", fg=YELLOW)
+            self.manual_mode_note.config(
+                text="couldn't find it: pick its channel above, or paste the message link", fg=YELLOW)
 
     def _scrolling_text(self, master, **options) -> tk.Text:
         """A Text with its own scrollbar, packed into `master`. A long line
@@ -1326,7 +1407,10 @@ class Panel(tk.Tk):
     def _manual_target(self) -> Optional[tuple[str, str, str]]:
         """(channel_id, channel_name, message_id) from the form, or None after
         saying what's missing."""
-        message_id = self.manual_message_id.get().strip()
+        _, message_id = _parse_message_ref(self.manual_message_id.get())
+        if self.manual_message_id.get().strip() and not message_id:
+            self.manual_status.config(text="that isn't a message id or link", fg=YELLOW)
+            return None
         if message_id and self._manual_resolving:
             self.manual_status.config(text="still finding that message's channel — hang on", fg=YELLOW)
             return None
@@ -1448,7 +1532,7 @@ class Panel(tk.Tk):
         stale = bool(draft) and (
             draft["prompt"] != self.manual_prompt.get("1.0", "end").strip()
             or draft["about_porygon"] != self._manual_about_porygon.get()
-            or draft["message_id"] != self.manual_message_id.get().strip()
+            or draft["message_id"] != _parse_message_ref(self.manual_message_id.get())[1]
         )
         self.manual_preview_note.config(text="form changed since this was written" if stale else "")
 
@@ -1527,9 +1611,9 @@ class Panel(tk.Tk):
         raises with a message fit to show directly in the status label."""
         context = ""
         if message_id:
-            msg = discord_roles.get_message(channel_id, message_id, os.environ["DISCORD_BOT_TOKEN"])
+            msg = _lookup_message(channel_id, message_id)
             if not msg:
-                raise RuntimeError("couldn't find that message id in that channel")
+                raise RuntimeError("couldn't find that message in that channel: pick its channel or paste the message link")
             author = msg.get("author", {})
             who = author.get("global_name") or author.get("username") or "someone"
             context = f"{who}: {msg.get('content') or '(no text)'}"
@@ -1696,12 +1780,6 @@ class Panel(tk.Tk):
                 font=FONT, fg=TEXT, bg=PANEL, selectcolor=PANEL_HI,
                 activebackground=PANEL, activeforeground=TEXT, highlightthickness=0,
             ).pack(side="left", padx=(8, 0))
-        self._chat_as_father = tk.BooleanVar(value=True)
-        tk.Checkbutton(
-            opts, text="I'm father", variable=self._chat_as_father,
-            font=FONT, fg=TEXT, bg=PANEL, selectcolor=PANEL_HI,
-            activebackground=PANEL, activeforeground=TEXT, highlightthickness=0,
-        ).pack(side="left", padx=(20, 0))
         self._chat_show_all = tk.BooleanVar(value=True)
         tk.Checkbutton(
             opts, text="Show all drafts + scores", variable=self._chat_show_all,
@@ -1709,6 +1787,26 @@ class Panel(tk.Tk):
             activebackground=PANEL, activeforeground=TEXT, highlightthickness=0,
         ).pack(side="left", padx=(12, 0))
         _button(opts, "Clear chat", self._chat_clear, color=PANEL_HI).pack(side="right")
+
+        # Who Z thinks is talking, and whether to lean on what it remembers
+        # about them. Personal mode pushes most of the batch onto that
+        # person's tagged memories (z_memory); live, it's only a couple of
+        # drafts per batch.
+        who = tk.Frame(body, bg=PANEL)
+        who.pack(fill="x", pady=(8, 0))
+        tk.Label(who, text="Speaking as", font=FONT, fg=MUTED, bg=PANEL).pack(side="left")
+        self._chat_people: dict[str, str] = {}
+        self.chat_person_combo = ttk.Combobox(who, width=34, state="readonly", font=FONT)
+        self.chat_person_combo.pack(side="left", padx=(8, 0))
+        self._chat_personal = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            who, text="Personal mode (callbacks + jabs from memories)", variable=self._chat_personal,
+            font=FONT, fg=TEXT, bg=PANEL, selectcolor=PANEL_HI,
+            activebackground=PANEL, activeforeground=TEXT, highlightthickness=0,
+        ).pack(side="left", padx=(16, 0))
+        self.chat_learn_btn = _button(who, "Learn now", self._chat_learn_now, color=PANEL_HI)
+        self.chat_learn_btn.pack(side="right")
+        self._chat_refresh_people()
 
         log_frame = tk.Frame(body, bg=PANEL)
         log_frame.pack(fill="both", expand=True, pady=(10, 0))
@@ -1737,9 +1835,46 @@ class Panel(tk.Tk):
         self.chat_entry.bind("<Return>", self._chat_on_enter)
         self.chat_send_btn = _button(entry_row, "Send", self._chat_send, color=PINK_DEEP)
         self.chat_send_btn.pack(side="left", padx=(8, 0), fill="y")
+        # A picture rides along with the next message, like a Discord attachment.
+        self._chat_image_path: Optional[str] = None
+        self._chat_thumbs: list = []  # keep PhotoImages alive
+        self.chat_image_btn = _button(entry_row, "Picture…", self._chat_pick_image, color=PANEL_HI)
+        self.chat_image_btn.pack(side="left", padx=(8, 0), fill="y")
         tk.Label(body, text="Enter sends, Shift+Enter for a new line. Each message costs a real "
                  "compose + score call, same as a !z, and takes a minute or two.", font=FONT_SM, fg=DIM, bg=PANEL,
                  anchor="w").pack(fill="x", pady=(4, 0))
+
+    def _chat_pick_image(self):
+        from tkinter import filedialog
+        if self._chat_image_path:  # second click clears it
+            self._chat_image_path = None
+            self.chat_image_btn.config(text="Picture…")
+            self.chat_note.config(text="picture removed", fg=MUTED)
+            return
+        path = filedialog.askopenfilename(
+            parent=self, title="Attach a picture for Z",
+            filetypes=[("Images", "*.png *.jpg *.jpeg *.gif *.webp"), ("All files", "*.*")],
+        )
+        if path:
+            self._chat_image_path = path
+            self.chat_image_btn.config(text="✕ " + os.path.basename(path)[:18])
+            self.chat_note.config(text="picture attached to your next message", fg=MUTED)
+
+    def _chat_show_thumb(self, path: str) -> None:
+        try:
+            from PIL import Image, ImageTk
+            im = Image.open(path)
+            im.thumbnail((220, 220))
+            photo = ImageTk.PhotoImage(im)
+        except Exception as e:
+            self._chat_write(f"[picture: {os.path.basename(path)} ({e})]\n", "meta")
+            return
+        self._chat_thumbs.append(photo)
+        self.chat_log.config(state="normal")
+        self.chat_log.image_create("end", image=photo)
+        self.chat_log.insert("end", "\n")
+        self.chat_log.config(state="disabled")
+        self.chat_log.see("end")
 
     def _chat_on_enter(self, event):
         if event.state & 0x0001:  # Shift held: newline
@@ -1763,32 +1898,90 @@ class Panel(tk.Tk):
         self.chat_log.config(state="disabled")
         self.chat_note.config(text="", fg=MUTED)
 
+    def _chat_refresh_people(self):
+        people = {}
+        father = z_brain.FATHER_USER_ID
+        counts = {uid: (name, n) for uid, name, n in z_memory.profiled_people()}
+        if father:
+            name, n = counts.get(father, (self.members.get(father) or "father", 0))
+            people[f"{name} (you, {n} memories)"] = father
+        for uid, (name, n) in counts.items():
+            if uid != father:
+                people[f"{name} ({n} memories)"] = uid
+        people["tester (no profile)"] = "panel-test"
+        current = self.chat_person_combo.get()
+        self._chat_people = people
+        self.chat_person_combo.config(values=list(people))
+        self.chat_person_combo.set(current if current in people else next(iter(people)))
+
+    def _chat_person(self) -> tuple[str, str]:
+        """(display name, user id) of whoever Test Chat is speaking as."""
+        label = self.chat_person_combo.get()
+        uid = self._chat_people.get(label, "panel-test")
+        if uid == "panel-test":
+            return "tester", uid
+        return label.split(" (")[0], uid
+
     def _chat_name(self) -> str:
-        if self._chat_as_father.get() and z_brain.FATHER_USER_ID:
-            return self.members.get(z_brain.FATHER_USER_ID) or "father"
-        return "tester"
+        return self._chat_person()[0]
+
+    def _chat_learn_now(self):
+        """Run the profile/memory scan right now instead of waiting for the
+        12-hour cadence. Reads the server, so it takes a minute or so."""
+        if self._chat_busy:
+            return
+        self.chat_learn_btn.config(state="disabled")
+        self.chat_note.config(text="Learning from the server… (a minute or so)", fg=YELLOW)
+
+        def work():
+            try:
+                before = {uid: n for uid, _, n in z_memory.profiled_people()}
+                z_profiles.scan(set(), force=True)
+                after = {uid: n for uid, _, n in z_memory.profiled_people()}
+                added = sum(max(0, n - before.get(uid, 0)) for uid, n in after.items())
+                self.after(0, lambda: self._chat_learned(f"learned {added} new memories", None))
+            except Exception as e:
+                error = str(e) or type(e).__name__
+                self.after(0, lambda: self._chat_learned(None, error))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _chat_learned(self, msg, error):
+        self.chat_learn_btn.config(state="normal")
+        if error:
+            self.chat_note.config(text=f"learn failed: {error}", fg=RED)
+            return
+        self._chat_refresh_people()
+        self.chat_note.config(text=msg, fg=MUTED)
 
     def _chat_send(self):
         text = self.chat_entry.get("1.0", "end").strip()
-        if not text or self._chat_busy:
+        image_path = self._chat_image_path
+        if (not text and not image_path) or self._chat_busy:
             return
         self.chat_entry.delete("1.0", "end")
         name = self._chat_name()
         self._chat_write(f"{name}\n", "you")
-        self._chat_write(f"{text}\n\n")
-        self._chat_history.append((name, text))
+        if image_path:
+            self._chat_show_thumb(image_path)
+            self._chat_image_path = None
+            self.chat_image_btn.config(text="Picture…")
+        self._chat_write(f"{text}\n\n" if text else "\n")
+        self._chat_history.append((name, text + (" [picture attached]" if image_path else "")))
         self._chat_busy = True
         self.chat_send_btn.config(state="disabled")
         self.chat_note.config(text="Z is drafting… (a minute or two)", fg=YELLOW)
 
-        author_id = z_brain.FATHER_USER_ID if self._chat_as_father.get() and z_brain.FATHER_USER_ID else "panel-test"
+        author_id = self._chat_person()[1]
         history = list(self._chat_history)
         recent = porygon_z._load_recent_replies(porygon_z.RECENT_REPLIES_LIMIT) + self._chat_z_replies[-20:]
         mode = self._chat_speech.get()
+        personal_share = 0.6 if self._chat_personal.get() else None
 
         def work():
             try:
-                result = self._chat_compose(history, name, text, author_id, recent, mode)
+                result = self._chat_compose(history, name, text, author_id, recent, mode, personal_share,
+                                            image_path)
                 self.after(0, lambda: self._chat_done(result, None))
             except Exception as e:
                 error = str(e) or type(e).__name__
@@ -1797,13 +1990,21 @@ class Panel(tk.Tk):
         threading.Thread(target=work, daemon=True).start()
 
     @staticmethod
-    def _chat_compose(history, name, text, author_id, recent, mode) -> dict:
+    def _chat_compose(history, name, text, author_id, recent, mode, personal_share=None,
+                      image_path=None) -> dict:
         """Runs off the UI thread. The panel is its own process, so swapping
         z_brain's speech hook here can't touch the live watcher."""
-        lines = [f"{who}: {said}" for who, said in history[:-1][-20:]]
-        lines.append(f">>> {name}: {text}")
+        lines = [f"{who}: {said}" for who, said in history[:-1][-50:]]
+        lines.append(f">>> {name}: {text}" + (" [picture attached]" if image_path else ""))
         context = "\n".join(lines)
         target = {"id": "0", "content": text, "author": {"id": author_id, "username": name, "global_name": name}}
+        images = []
+        if image_path:
+            im = z_brain.image_from_file(image_path)
+            if not im:
+                raise RuntimeError("couldn't read that picture")
+            images.append(im)
+        target["images"] = images
 
         clips: list[str] = []
         original = z_brain._maybe_speech_note
@@ -1820,6 +2021,7 @@ class Panel(tk.Tk):
             ranked = z_brain.compose_scored(
                 context, target, "test-chat", 0, {author_id},
                 z_brain.COMMAND_MAX_ATTEMPTS, recent_replies=recent,
+                personal_share=personal_share,
             )
         finally:
             z_brain._maybe_speech_note = original
@@ -1839,6 +2041,10 @@ class Panel(tk.Tk):
             return
         ranked = result["ranked"]
         best = ranked[0]
+        if self._chat_personal.get():
+            # Personal mode answers with the best personal draft; the rest
+            # still show below for comparison.
+            best = next((r for r in ranked if r.get("personal")), best)
         line, score = best["line"], best["score"]
         self._chat_history.append(("Porygon Z", line))
         self._chat_z_replies.append(line)
@@ -1850,9 +2056,18 @@ class Panel(tk.Tk):
             f"judge {score_txt} · {best['register']} · {best['stage']}"
             f" · speech: {result['clip']}\n", "meta",
         )
+        info = best.get("personal") or next((r["personal"] for r in ranked if r.get("personal")), None)
+        if info:
+            dug = ", ".join(info.get("tags") or []) or "?"
+            angle = f" · {info['angle']}" if info.get("angle") else ""
+            self._chat_write(f"memories dug: {dug}{angle}\n", "meta")
+            for m in info.get("memories") or []:
+                self._chat_write(f"   • {m}\n", "meta")
+        elif self._chat_personal.get():
+            self._chat_write("(personal mode: nothing remembered about this person yet; try Learn now)\n", "meta")
         self._chat_rating_row(result["message"], line)
         if self._chat_show_all.get() and len(ranked) > 1:
-            for r in ranked[1:]:
+            for r in (r for r in ranked if r is not best):
                 st = f"{r['score']:g}" if r["score"] is not None else "?"
                 tag = f"{r['register']}" + (", punched up" if r["stage"] == "punch-up" else "")
                 self._chat_write(

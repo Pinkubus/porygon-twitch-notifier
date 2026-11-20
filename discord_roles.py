@@ -14,6 +14,8 @@ import time
 from typing import Optional
 from urllib.parse import quote
 
+import re
+
 import requests
 
 logger = logging.getLogger("porygon.discord_roles")
@@ -289,9 +291,19 @@ def get_member_roles(guild_id: str, user_id: str, token: str) -> Optional[set[st
     return set(resp.json().get("roles", []))
 
 
+_USER_MENTION_RE = re.compile(r"<@!?(\d+)>")
+
+
+def _allowed_mentions(content: str) -> dict:
+    """Ping exactly the users the text deliberately tags, never @everyone,
+    roles, or the author of the message being replied to."""
+    ids = list(dict.fromkeys(_USER_MENTION_RE.findall(content or "")))[:20]
+    return {"parse": [], "users": ids, "replied_user": False}
+
+
 def post_message_with_file(channel_id: str, token: str, content: str, file_path: Optional[str] = None) -> Optional[str]:
     """Post as the real bot account (no webhook needed), optionally with one attached file."""
-    payload = {"content": content}
+    payload = {"content": content, "allowed_mentions": _allowed_mentions(content)}
     if file_path:
         with open(file_path, "rb") as f:
             resp = requests.post(
@@ -314,11 +326,12 @@ def post_message_with_file(channel_id: str, token: str, content: str, file_path:
 
 
 def post_reply(channel_id: str, message_id: str, token: str, content: str) -> Optional[str]:
-    """Post a plain-text message as a reply to `message_id` (no @-ping)."""
+    """Post a plain-text message as a reply to `message_id`. The replied-to
+    author isn't pinged; users tagged in the text as <@id> are."""
     payload = {
         "content": content,
         "message_reference": {"message_id": message_id, "channel_id": channel_id, "fail_if_not_exists": False},
-        "allowed_mentions": {"parse": [], "replied_user": False},
+        "allowed_mentions": _allowed_mentions(content),
     }
     resp = _request("POST", f"{DISCORD_API}/channels/{channel_id}/messages", token, json=payload)
     if resp is None or resp.status_code not in (200, 201):
