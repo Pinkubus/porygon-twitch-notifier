@@ -71,6 +71,7 @@ import scheduled_polls  # noqa: E402
 import z_brain  # noqa: E402
 import z_live  # noqa: E402
 import z_directives  # noqa: E402
+import z_dream  # noqa: E402
 import z_memory  # noqa: E402
 import z_profiles  # noqa: E402
 
@@ -593,6 +594,8 @@ class Panel(tk.Tk):
         tabs.add(chat, text="Test Chat")
         lab = tk.Frame(tabs, bg=BG, pady=12)
         tabs.add(lab, text="Reply Lab")
+        dream = tk.Frame(tabs, bg=BG, pady=12)
+        tabs.add(dream, text="Dream Park")
         body.columnconfigure(0, weight=0, minsize=330)
         body.columnconfigure(1, weight=0, minsize=430)
         body.columnconfigure(2, weight=1)
@@ -609,6 +612,7 @@ class Panel(tk.Tk):
         self._build_planner(planner)
         self._build_chat(chat)
         self._build_lab(lab)
+        self._build_dream(dream)
 
         self._rebuild_member_rows()
         self._load_controls_into_widgets()
@@ -1764,6 +1768,205 @@ class Panel(tk.Tk):
     # reply history, no style-note update, no names. The chat below is the
     # only "channel" he sees.
     _CHAT_SPEECH_MODES = ("Normal", "Always", "Off")
+
+    # ---- Dream Park: Z's thinking, live, with steering and cancel -------------
+    def _build_dream(self, master):
+        master.columnconfigure(0, weight=1)
+        master.rowconfigure(0, weight=1)
+        outer, body, self.dream_note = _card(master, "DREAM PARK (Z'S THINKING, LIVE)")
+        outer.grid(row=0, column=0, sticky="nsew")
+
+        top = tk.Frame(body, bg=PANEL)
+        top.pack(fill="x")
+        self.dream_status = tk.Label(top, text="waiting for Z to start thinking…", font=FONT_B,
+                                     fg=MUTED, bg=PANEL, anchor="w")
+        self.dream_status.pack(side="left", fill="x", expand=True)
+        _button(top, "Lessons learned", self._dream_show_lessons, color=PANEL_HI).pack(side="right")
+        _button(top, "Clear view", self._dream_clear, color=PANEL_HI).pack(side="right", padx=(0, 8))
+
+        log_frame = tk.Frame(body, bg=PANEL)
+        log_frame.pack(fill="both", expand=True, pady=(10, 0))
+        self.dream_log = tk.Text(log_frame, font=("Segoe UI", 10), fg=TEXT, bg=PANEL_HI, relief="flat",
+                                 wrap="word", padx=12, pady=10, state="disabled", cursor="arrow")
+        sb = ttk.Scrollbar(log_frame, orient="vertical", command=self.dream_log.yview,
+                           style="Z.Vertical.TScrollbar")
+        self.dream_log.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.dream_log.pack(side="left", fill="both", expand=True)
+        for tag, kw in (("head", dict(foreground=PINK, font=("Segoe UI Semibold", 11), spacing1=8)),
+                        ("round", dict(foreground=YELLOW, font=FONT_B, spacing1=6)),
+                        ("think", dict(foreground=MUTED, font=FONT)),
+                        ("good", dict(foreground=BLUE, font=FONT)),
+                        ("line", dict(foreground=TEXT, font=FONT, lmargin1=18, lmargin2=18)),
+                        ("dim", dict(foreground=DIM, font=FONT_SM, lmargin1=18, lmargin2=18)),
+                        ("lesson", dict(foreground=YELLOW, font=FONT)),
+                        ("chosen", dict(foreground=PINK, font=("Segoe UI Semibold", 10))),
+                        ("err", dict(foreground=RED, font=FONT_B))):
+            self.dream_log.tag_configure(tag, **kw)
+
+        steer = tk.Frame(body, bg=PANEL)
+        steer.pack(fill="x", pady=(10, 0))
+        tk.Label(steer, text="Steer", font=FONT, fg=MUTED, bg=PANEL).pack(side="left")
+        self.dream_steer = tk.Entry(steer, font=FONT, fg=TEXT, bg=PANEL_HI, insertbackground=TEXT, relief="flat")
+        self.dream_steer.pack(side="left", fill="x", expand=True, padx=(8, 8), ipady=4)
+        self.dream_steer.bind("<Return>", lambda e: self._dream_send_steer())
+        _button(steer, "Send steer", self._dream_send_steer, color=BLUE_DEEP).pack(side="left")
+        _button(steer, "Cancel thinking + reply", self._dream_cancel, color=RED).pack(side="left", padx=(8, 0))
+        tk.Label(body, text="Steering is added to his next round (a new round runs if he was about to stop). "
+                 "Cancel stops the current reply; nothing posts.", font=FONT_SM, fg=DIM, bg=PANEL,
+                 anchor="w").pack(fill="x", pady=(4, 0))
+
+        self._dream_offset = 0
+        try:
+            # Start near the end, so opening the panel shows the latest session.
+            size = os.path.getsize(z_dream.LOG_FILE)
+            self._dream_offset = max(0, size - 40_000)
+        except OSError:
+            pass
+        self._dream_first_read = True
+        self.after(500, self._dream_poll)
+
+    def _dream_write(self, text: str, tag: str = "") -> None:
+        at_end = self.dream_log.yview()[1] > 0.98
+        self.dream_log.config(state="normal")
+        self.dream_log.insert("end", text, tag)
+        self.dream_log.config(state="disabled")
+        if at_end:
+            self.dream_log.see("end")
+
+    def _dream_clear(self):
+        self.dream_log.config(state="normal")
+        self.dream_log.delete("1.0", "end")
+        self.dream_log.config(state="disabled")
+
+    def _dream_poll(self):
+        try:
+            with open(z_dream.LOG_FILE, encoding="utf-8") as f:
+                f.seek(0, 2)
+                size = f.tell()
+                if size < self._dream_offset:  # log was trimmed
+                    self._dream_offset = 0
+                f.seek(self._dream_offset)
+                chunk = f.read()
+                self._dream_offset = f.tell()
+            lines = chunk.splitlines()
+            if self._dream_first_read and lines:
+                lines = lines[1:]  # first line may be cut mid-way
+            self._dream_first_read = False
+            for ln in lines:
+                try:
+                    self._dream_render(json.loads(ln))
+                except ValueError:
+                    continue
+        except OSError:
+            pass
+        self.after(400, self._dream_poll)
+
+    def _dream_render(self, e: dict):
+        k = e.get("kind")
+        w = self._dream_write
+        if k == "start":
+            w(f"━━ {e.get('who')} in #{e.get('channel')} ━━\n", "head")
+            w(f"“{e.get('message', '')}”\n", "line")
+            voices = e.get("voices") or []
+            w(f"bar {e.get('bar')}, up to {e.get('rounds')} round(s): "
+              f"{len(voices)} Giggle Gains voice(s) + {e.get('free')} of his own\n", "dim")
+            self.dream_status.config(text=f"thinking about {e.get('who')} in #{e.get('channel')}…", fg=YELLOW)
+        elif k == "see":
+            w("👁  sees: " + e.get("text", "") + "\n", "think")
+        elif k == "memory":
+            w("🧠  digging up: " + (e.get("angle") or "") + "\n", "think")
+            for m in e.get("memories") or []:
+                w(f"• {m}\n", "dim")
+        elif k == "note":
+            w("…  " + e.get("text", "") + "\n", "think")
+        elif k == "round":
+            w(f"── round {e.get('round')} ──\n", "round")
+            self.dream_status.config(text=f"round {e.get('round')}: drafting…", fg=YELLOW)
+        elif k == "steer":
+            w("🧭  steering: " + e.get("text", "") + "\n", "good")
+        elif k == "scored":
+            w(f"⚖  round {e.get('round')} judged side by side:\n", "think")
+            for i in e.get("items") or []:
+                sc = i.get("score")
+                w(f"[{sc:g}] " if isinstance(sc, (int, float)) else "[?] ", "good")
+                w(f"{i.get('voice')}" + (" (earlier round)" if i.get("earlier") else "") + ": ", "think")
+                w(f"{i.get('line')}\n", "line")
+                if i.get("fix"):
+                    w(f"judge: {i['fix']}\n", "dim")
+        elif k == "draft":
+            sc = e.get("score")
+            sc_txt = f"[{sc:g}] " if isinstance(sc, (int, float)) else "✎ "
+            voice = e.get("voice") or "?"
+            w(f"{sc_txt}{voice}", "think")
+            if e.get("idea"):
+                w(f"  ({e['idea']})", "dim")
+            w("\n")
+            w(e.get("line", "") + "\n", "line")
+            if e.get("fix"):
+                w(f"judge: {e['fix']}\n", "dim")
+        elif k == "finalists":
+            w("⚖  side by side: " + "  |  ".join(
+                f"{i.get('score')} {i.get('voice')}" for i in e.get("items") or []) + "\n", "think")
+        elif k == "lesson":
+            w("💡  what the whole round was missing: " + (e.get("diagnosis") or "") + "\n", "lesson")
+            w(("saved lesson: " if e.get("new") else "reinforced lesson: ") + (e.get("lesson") or "") + "\n", "dim")
+        elif k == "chosen":
+            w(f"✅  going with ({e.get('score')}, {e.get('voice')}): {e.get('line')}\n\n", "chosen")
+            self.dream_status.config(text="done: picked a line", fg=BLUE)
+        elif k == "out_of_rounds":
+            w(f"⏹  out of rounds, best was {e.get('score')}: {e.get('line')}\n\n", "chosen")
+            self.dream_status.config(text="done: out of rounds", fg=MUTED)
+        elif k == "cancelled":
+            w("✖  cancelled, nothing will post\n\n", "err")
+            self.dream_status.config(text="cancelled", fg=RED)
+
+    def _dream_send_steer(self):
+        text = self.dream_steer.get().strip()
+        if not text:
+            return
+        try:
+            z_dream.add_steer(text)
+        except Exception as e:
+            self.dream_note.config(text=f"steer failed: {e}", fg=RED)
+            return
+        self.dream_steer.delete(0, "end")
+        self.dream_note.config(text="steer sent: he'll use it next round", fg=BLUE)
+
+    def _dream_cancel(self):
+        try:
+            z_dream.cancel()
+        except Exception as e:
+            self.dream_note.config(text=f"cancel failed: {e}", fg=RED)
+            return
+        self.dream_note.config(text="cancel sent: stops after the step in progress", fg=RED)
+
+    def _dream_show_lessons(self):
+        win = tk.Toplevel(self)
+        win.title("Z's lessons learned")
+        win.configure(bg=PANEL)
+        win.geometry("680x460")
+        body = tk.Frame(win, bg=PANEL, padx=14, pady=12)
+        body.pack(fill="both", expand=True)
+
+        def render():
+            for w in body.winfo_children():
+                w.destroy()
+            items = z_dream.lessons()
+            tk.Label(body, text=f"{len(items)} lesson(s), from rounds where everything fell flat. "
+                     "They go into every draft.", font=FONT, fg=MUTED, bg=PANEL, anchor="w").pack(fill="x", pady=(0, 8))
+            for d in items:
+                r = tk.Frame(body, bg=PANEL_HI)
+                r.pack(fill="x", pady=2)
+                seen = f"  (×{d.get('seen', 1)})" if d.get("seen", 1) > 1 else ""
+                tk.Label(r, text=d["text"] + seen, font=FONT, fg=TEXT, bg=PANEL_HI, anchor="w",
+                         justify="left", wraplength=560).pack(side="left", fill="x", expand=True, padx=8, pady=4)
+                _button(r, "Remove", lambda i=d["id"]: (z_dream.remove_lesson(i), render()),
+                        color=PANEL).pack(side="right", padx=4)
+            if not items:
+                tk.Label(body, text="(none yet)", font=FONT, fg=DIM, bg=PANEL).pack(anchor="w")
+
+        render()
 
     # ---- Reply Lab: re-roll anything Z has replied to, nothing posts ----------
     _LAB_PAGES = 3  # pages of 100 messages read per channel when scanning

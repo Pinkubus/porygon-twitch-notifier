@@ -60,7 +60,7 @@ ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 # How many of Z's own past replies (from REPLY_HISTORY_FILE) get fed back in
 # so it never reuses the same device (a ledger, a spreadsheet, a stamp...)
 # across unrelated messages.
-RECENT_REPLIES_LIMIT = int(os.environ.get("Z_RECENT_REPLIES_LIMIT", 150))
+RECENT_REPLIES_LIMIT = int(os.environ.get("Z_RECENT_REPLIES_LIMIT", 50))
 
 
 _EXTRA_WEBHOOK_URL = os.environ.get("EXTRA_DISCORD_WEBHOOK_URL", "")

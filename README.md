@@ -300,6 +300,28 @@ mode** checkbox (about 60% of drafts personal, and the reply shown is the
 best personal one), and a **Learn now** button that runs the scan
 immediately. The memories dug for each reply are listed under it.
 
+### Dream Park (how a reply gets made now)
+
+`z_brain.compose_scored` runs rounds (`Z_DREAM=0` falls back to the older
+single-batch pipeline). Each round writes one draft per Giggle Gains voice
+(`z_brain.draft_voice`, the voice's delivery leading, Z's bureaucrat register
+off) plus `Z_DREAM_FREE_DRAFTS` (2) of Z's own from the usual register mix.
+The whole round is then judged in one call, with the best two from earlier
+rounds carried in. If the best clears the bar (`Z_COMMAND_MIN_SCORE`, 4.5) he
+stops. Otherwise `z_dream.learn_from_round` works out what the whole round was
+missing, saves it as a permanent lesson in `z_lessons.json` (read into every
+compose), and he tries again, up to `Z_DREAM_MAX_ROUNDS` (3). Unprompted
+replies get one round and no lessons. Vent-channel venting skips the borrowed
+voices.
+
+Every step is appended to `z_dream_log.jsonl`, and the panel's **Dream Park**
+tab tails it live: pictures described, memories dug up, each draft with its
+angle, the side-by-side scores, lessons, the pick. **Steer** writes a note to
+`z_dream_control.json` that the next round follows (forcing another round if
+he was about to stop); **Cancel** stops the reply and nothing posts.
+**Lessons learned** lists and removes lessons. All three files are
+gitignored. A round is about 14 Claude Code runs.
+
 ### Who Z is (self-memory)
 
 `z_self.py` is the same idea as people's memories, pointed at Z. Each profile
