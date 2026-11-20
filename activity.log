@@ -8146,3 +8146,26 @@
     <head>
         <meta charset="utf-8">
         <meta 
+[2026-11-20 01:03:06Z] 🐌 Slow Claude Code call: memory_pick on claude-haiku-4-5-20251001 took 33.2s
+[2026-11-20 01:03:26Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 20.6s
+[2026-11-20 01:03:29Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 22.7s
+[2026-11-20 01:03:47Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 41.2s
+[2026-11-20 01:03:48Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 41.7s
+[2026-11-20 01:04:35Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 88.5s
+[2026-11-20 01:07:07Z] 🐌 Slow Claude Code call: memory_pick on claude-haiku-4-5-20251001 took 37.7s
+[2026-11-20 01:07:31Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 24.4s
+[2026-11-20 01:07:32Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 25.5s
+[2026-11-20 01:07:49Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 41.6s
+[2026-11-20 01:07:56Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 49.4s
+[2026-11-20 01:08:31Z] 🐌 Slow Claude Code call: score_batch on claude-sonnet-5 took 34.7s
+[2026-11-20 01:08:39Z] 🐌 Slow Claude Code call: score_batch on claude-sonnet-5 took 43.1s
+[2026-11-20 01:08:43Z] ⚠️ Instagram check for @turtle.prism returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
+[2026-11-20 01:08:43Z] ⚠️ Instagram check for @lxzycxlm returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
