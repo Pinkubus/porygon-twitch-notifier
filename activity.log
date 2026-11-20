@@ -8111,3 +8111,38 @@
     <head>
         <meta charset="utf-8">
         <meta 
+[2026-11-20 00:50:30Z] 🐌 Slow Claude Code call: memory_pick on claude-haiku-4-5-20251001 took 37.4s
+[2026-11-20 00:51:08Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 38.0s
+[2026-11-20 00:51:31Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 61.3s
+[2026-11-20 00:51:45Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 75.1s
+[2026-11-20 00:52:47Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 137.0s
+[2026-11-20 00:53:40Z] 🐌 Slow Claude Code call: score_batch on claude-sonnet-5 took 53.3s
+[2026-11-20 00:54:50Z] 🐌 Slow Claude Code call: score_batch on claude-sonnet-5 took 53.9s
+[2026-11-20 00:56:54Z] 🐌 Slow Claude Code call: memory_pick on claude-haiku-4-5-20251001 took 42.0s
+[2026-11-20 00:57:20Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 25.5s
+[2026-11-20 00:57:22Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 27.5s
+[2026-11-20 00:57:41Z] 🐌 Slow Claude Code call: memory_pick on claude-haiku-4-5-20251001 took 26.7s
+[2026-11-20 00:58:02Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 68.3s
+[2026-11-20 00:58:10Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 28.7s
+[2026-11-20 00:58:11Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 29.6s
+[2026-11-20 00:58:24Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 90.0s
+[2026-11-20 00:58:38Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 56.8s
+[2026-11-20 00:58:39Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 58.2s
+[2026-11-20 00:59:07Z] 🐌 Slow Claude Code call: score_batch on claude-sonnet-5 took 28.3s
+[2026-11-20 00:59:11Z] 🐌 Slow Claude Code call: score_batch on claude-sonnet-5 took 31.7s
+[2026-11-20 00:59:25Z] 🐌 Slow Claude Code call: score_batch on claude-sonnet-5 took 45.8s
+[2026-11-20 00:59:29Z] 🐌 Slow Claude Code call: score_batch on claude-sonnet-5 took 64.3s
+[2026-11-20 00:59:34Z] 👾 Porygon Z replied (direct summon)
+[2026-11-20 01:00:53Z] 🕰️ Watcher was offline ~11 min — checking for missed jugglez summons since 2026-11-20 00:49 UTC
+[2026-11-20 01:01:14Z] 🐌 Slow Claude Code call: memory_pick on claude-haiku-4-5-20251001 took 38.4s
+[2026-11-20 01:01:39Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 24.9s
+[2026-11-20 01:02:50Z] ⚠️ Instagram check for @turtle.prism returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
+[2026-11-20 01:02:51Z] ⚠️ Instagram check for @lxzycxlm returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
