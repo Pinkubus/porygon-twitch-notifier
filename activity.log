@@ -8279,3 +8279,8 @@
         <meta charset="utf-8">
         <meta 
 [2026-11-20 22:04:59Z] ✅ Twitch: erodite went live — Discord notified
+[2026-11-20 21:51:21Z] 🐌 Slow Claude Code call: memory_pick on claude-haiku-4-5-20251001 took 35.2s
+[2026-11-20 21:59:08Z] 🐌 Slow Claude Code call: memory_pick on claude-haiku-4-5-20251001 took 36.6s
+[2026-11-20 21:59:44Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 35.9s
+[2026-11-20 22:07:31Z] 🛑 Porygon Z's jugglez reply held back from the approval popup
+[2026-11-20 22:07:37Z] 💸 Claude Code call failed (compose_batch), used the paid API instead
