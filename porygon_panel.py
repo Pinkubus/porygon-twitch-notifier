@@ -590,6 +590,8 @@ class Panel(tk.Tk):
         tabs.add(planner, text="Poll Planner")
         chat = tk.Frame(tabs, bg=BG, pady=12)
         tabs.add(chat, text="Test Chat")
+        lab = tk.Frame(tabs, bg=BG, pady=12)
+        tabs.add(lab, text="Reply Lab")
         body.columnconfigure(0, weight=0, minsize=330)
         body.columnconfigure(1, weight=0, minsize=430)
         body.columnconfigure(2, weight=1)
@@ -605,6 +607,7 @@ class Panel(tk.Tk):
         self._build_manual(body).grid(row=2, column=0, columnspan=3, sticky="ew", pady=(12, 0))
         self._build_planner(planner)
         self._build_chat(chat)
+        self._build_lab(lab)
 
         self._rebuild_member_rows()
         self._load_controls_into_widgets()
@@ -1760,6 +1763,245 @@ class Panel(tk.Tk):
     # reply history, no style-note update, no names. The chat below is the
     # only "channel" he sees.
     _CHAT_SPEECH_MODES = ("Normal", "Always", "Off")
+
+    # ---- Reply Lab: re-roll anything Z has replied to, nothing posts ----------
+    _LAB_PAGES = 3  # pages of 100 messages read per channel when scanning
+
+    def _build_lab(self, master):
+        master.columnconfigure(0, weight=1)
+        master.rowconfigure(0, weight=1)
+        outer, body, self.lab_note = _card(master, "REPLY LAB (RE-ROLLS NEVER POST)")
+        outer.grid(row=0, column=0, sticky="nsew")
+        self._lab_items: dict[str, dict] = {}
+        self._lab_busy = False
+
+        top = tk.Frame(body, bg=PANEL)
+        top.pack(fill="x")
+        self.lab_scan_btn = _button(top, "Load Z's replies from the server", self._lab_scan)
+        self.lab_scan_btn.pack(side="left")
+        tk.Label(top, text="Filter", font=FONT, fg=MUTED, bg=PANEL).pack(side="left", padx=(16, 4))
+        self.lab_filter = tk.Entry(top, font=FONT, fg=TEXT, bg=PANEL_HI, insertbackground=TEXT,
+                                   relief="flat", width=28)
+        self.lab_filter.pack(side="left", ipady=3)
+        self.lab_filter.bind("<KeyRelease>", lambda e: self._lab_fill())
+        self._lab_show_all = tk.BooleanVar(value=True)
+        tk.Checkbutton(
+            top, text="Show all drafts + scores", variable=self._lab_show_all,
+            font=FONT, fg=TEXT, bg=PANEL, selectcolor=PANEL_HI,
+            activebackground=PANEL, activeforeground=TEXT, highlightthickness=0,
+        ).pack(side="left", padx=(16, 0))
+        self.lab_roll_btn = _button(top, "Re-roll selected", self._lab_reroll, color=PINK_DEEP)
+        self.lab_roll_btn.pack(side="right")
+
+        style = ttk.Style(self)
+        style.configure("Lab.Treeview", background=PANEL_HI, fieldbackground=PANEL_HI, foreground=TEXT,
+                        font=FONT, rowheight=22, borderwidth=0)
+        style.configure("Lab.Treeview.Heading", background=PANEL, foreground=MUTED, font=FONT_B)
+        style.map("Lab.Treeview", background=[("selected", PINK_DEEP)])
+
+        split = tk.PanedWindow(body, orient="vertical", bg=PANEL, sashwidth=6, bd=0)
+        split.pack(fill="both", expand=True, pady=(10, 0))
+        list_frame = tk.Frame(split, bg=PANEL)
+        cols = ("when", "channel", "who", "message", "z")
+        self.lab_tree = ttk.Treeview(list_frame, columns=cols, show="headings", style="Lab.Treeview",
+                                     selectmode="browse", height=10)
+        for col, head, width in (("when", "When", 105), ("channel", "Channel", 150), ("who", "Who", 110),
+                                 ("message", "They said", 380), ("z", "Z replied", 380)):
+            self.lab_tree.heading(col, text=head)
+            self.lab_tree.column(col, width=width, stretch=col in ("message", "z"))
+        sb = ttk.Scrollbar(list_frame, orient="vertical", command=self.lab_tree.yview,
+                           style="Z.Vertical.TScrollbar")
+        self.lab_tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.lab_tree.pack(side="left", fill="both", expand=True)
+        self.lab_tree.bind("<<TreeviewSelect>>", lambda e: self._lab_show_selected())
+        self.lab_tree.bind("<Double-1>", lambda e: self._lab_reroll())
+        split.add(list_frame, minsize=140, height=260)
+
+        log_frame = tk.Frame(split, bg=PANEL)
+        self.lab_log = tk.Text(log_frame, font=("Segoe UI", 11), fg=TEXT, bg=PANEL_HI, relief="flat",
+                               wrap="word", padx=12, pady=10, state="disabled", cursor="arrow")
+        lsb = ttk.Scrollbar(log_frame, orient="vertical", command=self.lab_log.yview,
+                            style="Z.Vertical.TScrollbar")
+        self.lab_log.configure(yscrollcommand=lsb.set)
+        lsb.pack(side="right", fill="y")
+        self.lab_log.pack(side="left", fill="both", expand=True)
+        for tag, kw in (("you", dict(foreground=YELLOW, font=("Segoe UI Semibold", 11))),
+                        ("z", dict(foreground=PINK, font=("Segoe UI Semibold", 11))),
+                        ("meta", dict(foreground=DIM, font=FONT_SM)),
+                        ("draft", dict(foreground=MUTED, font=FONT, lmargin1=24, lmargin2=24)),
+                        ("err", dict(foreground=RED))):
+            self.lab_log.tag_configure(tag, **kw)
+        split.add(log_frame, minsize=160)
+        tk.Label(body, text="Pick a reply and hit Re-roll (or double-click). It drafts against the same "
+                 "conversation Z saw, with his current personality. Nothing is posted or recorded.",
+                 font=FONT_SM, fg=DIM, bg=PANEL, anchor="w").pack(fill="x", pady=(4, 0))
+
+    def _lab_write(self, text: str, tag: str = "") -> None:
+        self.lab_log.config(state="normal")
+        self.lab_log.insert("end", text, tag)
+        self.lab_log.config(state="disabled")
+        self.lab_log.see("end")
+
+    def _lab_scan(self):
+        if self._lab_busy:
+            return
+        self._lab_busy = True
+        self.lab_scan_btn.config(state="disabled")
+        self.lab_note.config(text="reading the server… (a minute or so)", fg=YELLOW)
+
+        def work():
+            try:
+                items = self._lab_collect()
+                self.after(0, lambda: self._lab_loaded(items, None))
+            except Exception as e:
+                err = str(e) or type(e).__name__
+                self.after(0, lambda: self._lab_loaded(None, err))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    @classmethod
+    def _lab_collect(cls) -> list[dict]:
+        """Every message Z posted as a reply in the last few pages of every
+        channel, paired with the message it answered."""
+        token = os.environ["DISCORD_BOT_TOKEN"]
+        z_token = porygon_z._z_token()
+        z_id = porygon_z._z_user_id(z_token, "")
+        if not z_id:
+            raise RuntimeError("couldn't work out Z's user id")
+        found = []
+        for cid, label in _fetch_text_channels():
+            before = None
+            for _ in range(cls._LAB_PAGES):
+                try:
+                    page = discord_roles.get_channel_messages(cid, token, before=before, limit=100) or []
+                except Exception:
+                    page = []
+                if not page:
+                    break
+                for m in page:
+                    parent = m.get("referenced_message")
+                    if (m.get("author") or {}).get("id") == z_id and parent:
+                        found.append({"channel_id": cid, "channel": label, "z": m, "target": parent})
+                before = min(page, key=lambda x: int(x["id"]))["id"]
+                if len(page) < 100:
+                    break
+        found.sort(key=lambda it: int(it["z"]["id"]), reverse=True)
+        return found
+
+    def _lab_loaded(self, items, error):
+        self._lab_busy = False
+        self.lab_scan_btn.config(state="normal")
+        if error:
+            self.lab_note.config(text=f"scan failed: {error}", fg=RED)
+            return
+        self._lab_all = items
+        self._lab_fill()
+        self.lab_note.config(text=f"{len(items)} replies found", fg=MUTED)
+
+    def _lab_fill(self):
+        items = getattr(self, "_lab_all", [])
+        needle = self.lab_filter.get().strip().lower()
+        self.lab_tree.delete(*self.lab_tree.get_children())
+        self._lab_items = {}
+        for it in items:
+            t, z = it["target"], it["z"]
+            who = (t.get("author") or {}).get("global_name") or (t.get("author") or {}).get("username") or "?"
+            said = " ".join((t.get("content") or "").split()) or ("[picture]" if z_brain._has_image(t) else "")
+            zsaid = " ".join((z.get("content") or "").split())
+            row = (time.strftime("%m-%d %H:%M", time.localtime(z_brain._msg_time(z["id"]))),
+                   it["channel"], who, said[:200], zsaid[:200])
+            if needle and needle not in " ".join(row).lower():
+                continue
+            iid = self.lab_tree.insert("", "end", values=row)
+            self._lab_items[iid] = it
+
+    def _lab_selected(self) -> Optional[dict]:
+        sel = self.lab_tree.selection()
+        return self._lab_items.get(sel[0]) if sel else None
+
+    def _lab_show_selected(self):
+        it = self._lab_selected()
+        if not it or self._lab_busy:
+            return
+        t, z = it["target"], it["z"]
+        who = (t.get("author") or {}).get("global_name") or (t.get("author") or {}).get("username") or "?"
+        self.lab_log.config(state="normal")
+        self.lab_log.delete("1.0", "end")
+        self.lab_log.config(state="disabled")
+        self._lab_write(f"{who} in {it['channel']}\n", "you")
+        self._lab_write((t.get("content") or "").strip() + (" [picture]" if z_brain._has_image(t) else "") + "\n\n")
+        self._lab_write("Porygon Z (what was posted)\n", "z")
+        self._lab_write((z.get("content") or "").strip() + "\n\n")
+
+    def _lab_reroll(self):
+        it = self._lab_selected()
+        if not it or self._lab_busy:
+            if not it:
+                self.lab_note.config(text="pick a reply first", fg=YELLOW)
+            return
+        self._lab_busy = True
+        self.lab_roll_btn.config(state="disabled")
+        self.lab_note.config(text="Z is drafting… (a minute or two)", fg=YELLOW)
+        self._lab_write("— re-roll —\n", "meta")
+
+        def work():
+            try:
+                result = self._lab_compose(it)
+                self.after(0, lambda: self._lab_done(result, None))
+            except Exception as e:
+                err = str(e) or type(e).__name__
+                self.after(0, lambda: self._lab_done(None, err))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    @staticmethod
+    def _lab_compose(it: dict) -> dict:
+        """The live pipeline against the original conversation. Runs in this
+        (panel) process, so nothing touches the watcher, the server, reply
+        history or the style note."""
+        token = os.environ["DISCORD_BOT_TOKEN"]
+        # Fresh copy each roll: target_images/_look_at cache onto the dict.
+        target = {k: v for k, v in it["target"].items() if k not in ("images", "_seen", "_recent_msgs")}
+        channel_name = it["channel"].lstrip("#").split(" › ")[-1]
+        context, user_ids = z_brain.build_context(it["channel_id"], target, token)
+        recent = porygon_z._load_recent_replies(porygon_z.RECENT_REPLIES_LIMIT)
+        ranked = z_brain.compose_scored(
+            context, target, channel_name, 0, user_ids, z_brain.COMMAND_MAX_ATTEMPTS,
+            recent_replies=recent,
+        )
+        if not ranked:
+            raise RuntimeError("no drafts came back (check the log)")
+        banter = z_brain._banter_channels.get(channel_name) if z_brain.is_delicate(channel_name) else None
+        return {"ranked": ranked, "images": len(target.get("images") or []), "banter": banter}
+
+    def _lab_done(self, result, error):
+        self._lab_busy = False
+        self.lab_roll_btn.config(state="normal")
+        if error:
+            self._lab_write(f"(failed: {error})\n\n", "err")
+            self.lab_note.config(text="failed", fg=RED)
+            return
+        ranked = result["ranked"]
+        best = ranked[0]
+        score_txt = f"{best['score']:g}" if best["score"] is not None else "?"
+        self._lab_write("Porygon Z (re-roll)\n", "z")
+        self._lab_write(f"{best['line']}\n")
+        extras = []
+        if result["images"]:
+            extras.append(f"looked at {result['images']} picture(s)")
+        if result["banter"] is not None:
+            extras.append("vent channel: " + ("banter mode" if result["banter"] else "venting rules"))
+        self._lab_write(f"judge {score_txt} · {best['register']} · {best['stage']}"
+                        + "".join(f" · {x}" for x in extras) + "\n", "meta")
+        if self._lab_show_all.get():
+            for r in ranked[1:]:
+                st = f"{r['score']:g}" if r["score"] is not None else "?"
+                tag = r["register"] + (", punched up" if r["stage"] == "punch-up" else "")
+                self._lab_write(f"[{st}] ({tag}) {r['line']}"
+                                + (f"  — fix: {r['fix']}" if r.get("fix") else "") + "\n", "draft")
+        self._lab_write("\n")
+        self.lab_note.config(text=f"best of {len(ranked)} · judge {score_txt}", fg=MUTED)
 
     def _build_chat(self, master):
         master.columnconfigure(0, weight=1)

@@ -389,6 +389,27 @@ before relying on this for a bot other people talk to.
 Post-reply chores (the style note and the name record) and the 12-hourly
 memory scan run on background threads, so a summon never queues behind them.
 
+### Giggle Gains link
+
+Z's drafting also draws on the comedy playbook from the Giggle Gains humor
+trainer (`giggle_gains/playbook.py` in `Z_GIGGLE_GAINS_DIR`, default
+`~/Desktop/Giggle-Gains`): its voices, delivery principles, chaos energy,
+guardrails and the Extra Turn. It's read live, reloading whenever that
+package's files change, so updating Giggle Gains updates Z with no change or
+restart here. Z treats it as a bench of moves translated into his own voice
+and rules, never quoting its example lines or naming its sources. It's left
+out under the vent-channel rules. `Z_GIGGLE_GAINS=0` turns it off.
+
+### Vent channels: banter vs. venting
+
+Before each reply in a vent channel (`DELICATE_CHANNELS`), a cheap gate
+(`z_brain.is_banter`) reads the conversation. When it's clearly people
+messing around, Z gets his full personality (influences, speech clips,
+Giggle Gains, personal callbacks, bits) and only a "SKIP if this message is
+genuinely upset" rule. If anyone nearby is venting or asking for support, or
+the gate is unsure, the old cautious rules apply. Memory learning from vent
+channels is unchanged.
+
 ### Running style note
 
 `z_style.py` keeps Z's own style from wandering reply to reply. After every
@@ -417,6 +438,15 @@ saved to `z_owner_ratings.json` (gitignored, since it holds your private test me
 of extra calibration anchors, keeping the newest `Z_OWNER_RATINGS_MAX`
 (default 30). The judge reads the rubric fresh on every call, so your ratings
 start pulling its taste toward yours right away.
+
+### Reply Lab (panel tab)
+
+**Load Z's replies from the server** scans the last few pages of every
+channel for messages Z posted as replies, paired with what they answered
+(about a minute). Pick one and **Re-roll** (or double-click) to draft against
+the same conversation with Z's current personality, pictures and banter
+check included, and see the best line plus every draft with its score.
+Nothing is posted, and nothing goes into reply history or the style note.
 
 ### Tuning it
 

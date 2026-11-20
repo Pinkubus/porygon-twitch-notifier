@@ -111,6 +111,20 @@ def is_delicate(channel_name: str) -> bool:
     name = channel_name.lower()
     return any(c in name for c in DELICATE_CHANNELS)
 
+
+# Vent channels aren't always venting. Before each reply there, a cheap gate
+# (is_banter) reads the conversation; when it's clearly people messing
+# around, Z gets its full personality (influences, speech clips, Giggle
+# Gains, personal callbacks, bits) and only a SKIP-if-genuinely-upset rule.
+# Otherwise it keeps the cautious vent rules. compose_scored decides per
+# reply and records it here, keyed by channel name.
+_banter_channels: dict[str, bool] = {}
+
+
+def _vent_strict(channel_name: str) -> bool:
+    """True when the cautious vent-channel rules apply to this reply."""
+    return is_delicate(channel_name) and not _banter_channels.get(channel_name, False)
+
 # How many replies it takes for the clingy bit to reach full frequency.
 _CLINGY_RAMP = int(os.environ.get("Z_CLINGY_RAMP", 150))
 
@@ -786,6 +800,34 @@ genuinely upset, venting, or asking for support, reply with exactly: SKIP
 # Summoned by someone going through something rough (see needs_encouragement).
 # Z still sounds like Z, but it is unmistakably in their corner: the chaos and
 # the make-it-worse advice get aimed at whatever is wronging them, never at them.
+_BANTER_VENT_NOTE = """\
+This is the server's vent channel, but right now the conversation is clearly \
+people messing around, so be fully yourself: every move, register and bit you \
+have. One rule stays: if the >>> message itself is someone genuinely upset, \
+venting, or asking for support, reply with exactly: SKIP
+"""
+
+_BANTER_GATE_SYSTEM = (
+    "You screen a Discord support/vent channel for a joke bot about to answer "
+    "the message marked >>>. Decide whether the conversation around it is "
+    "clearly banter: people joking, bantering, being silly or chatting about "
+    "light everyday stuff, with nobody in the recent messages genuinely upset, "
+    "struggling or asking for support.\n\n"
+    "Say YES only if it is clearly banter. Say NO if anyone nearby is venting, "
+    "sad, anxious, stressed, grieving, dealing with something hard, or asking "
+    "for help, even if they joke about it, and say NO whenever you are unsure. "
+    "Answer with exactly YES or NO."
+)
+
+
+def is_banter(context: str) -> bool:
+    """Cheap gate for vent channels: is this clearly banter, so Z can be
+    fully itself? Errs toward NO."""
+    result = _call(MODEL_GATE, _BANTER_GATE_SYSTEM, f"Conversation:\n{context}",
+                   max_tokens=8, purpose="is_banter")
+    return bool(result) and result.strip().upper().startswith("YES")
+
+
 _ENCOURAGING_NOTE = """\
 The person you are answering is dealing with something genuinely rough (unfair \
 treatment, stress, a bad stretch), even if they are telling it lightly. They \
@@ -1599,7 +1641,7 @@ def _system_for(
         tone_note = _CLINGY_NOTE if should_be_clingy(reply_count) else _maybe_tone_note()
     if tone_note:
         system += "\n" + tone_note
-    if speech_note is None and not is_delicate(channel_name):
+    if speech_note is None and not _vent_strict(channel_name):
         speech_note = _maybe_speech_note()
     if speech_note:
         system += "\n" + speech_note
@@ -1613,9 +1655,11 @@ def _system_for(
         # Replaces the venting-channel SKIP rule: they asked for Z, and
         # support is exactly what's called for.
         system += "\n" + _ENCOURAGING_NOTE
-    elif is_delicate(channel_name):
+    elif _vent_strict(channel_name):
         system += "\n" + _DELICATE_NOTE
     else:
+        if is_delicate(channel_name):
+            system += "\n" + _BANTER_VENT_NOTE
         # Not offered in a support/venting moment even if the channel isn't
         # flagged delicate enough to SKIP outright — a running bit (least of
         # all "arsonist") has no business showing up while someone's actually
@@ -1927,7 +1971,7 @@ def _register_plan(count: int, reply_count: int, channel_name: str = "",
 
     influence = []
     left = count - n_personal
-    sources = [] if (encouraging or is_delicate(channel_name)) else _influence_sources()
+    sources = [] if (encouraging or _vent_strict(channel_name)) else _influence_sources()
     n_infl = int(round(left * _INFLUENCE_SHARE)) if sources and left >= 3 else 0
     n_infl = min(n_infl, max(0, left - min_default))
     if n_infl:
@@ -1958,7 +2002,7 @@ def _pick_personal(target: dict, channel_name: str, context: str, encouraging: b
                    personal_share: Optional[float]) -> Optional[dict]:
     """What to dig for about the person being answered, or None (nothing
     remembered, a vent channel, an encouraging reply, or personal turned off)."""
-    if encouraging or is_delicate(channel_name):
+    if encouraging or _vent_strict(channel_name):
         return None
     share = _PERSONAL_SHARE if personal_share is None else personal_share
     uid = (target.get("author") or {}).get("id")
@@ -2123,6 +2167,10 @@ def compose_scored(
     best first. Unscored candidates sort last with score None."""
     rubric = load_rubric()
     msg_text = target.get("content") or ""
+    if is_delicate(channel_name):
+        banter = not encouraging and is_banter(context)
+        _banter_channels[channel_name] = banter
+        logger.info(f"#{channel_name}: {'banter, full personality' if banter else 'venting rules'}")
     images = target_images(target, channel_name)  # downloaded once, cached on target
     if images and _asks_about_images(target):
         _look_at(target)
@@ -2186,6 +2234,76 @@ def compose_scored(
     return pool
 
 
+# --- Giggle Gains link -----------------------------------------------------------
+# Z's ideation also draws on the comedic playbook from the Giggle Gains humor
+# trainer (giggle_gains/playbook.py: its voices, principles, chaos energy, the
+# Extra Turn, and whatever gets added later). It's read live from that
+# project, reloaded whenever its files change, so updating Giggle Gains
+# updates Z with no edits or restart here. Z_GIGGLE_GAINS_DIR points at it;
+# Z_GIGGLE_GAINS=0 turns the link off.
+GIGGLE_GAINS_DIR = os.environ.get(
+    "Z_GIGGLE_GAINS_DIR", os.path.join(os.path.expanduser("~"), "Desktop", "Giggle-Gains"))
+_GIGGLE_ON = os.environ.get("Z_GIGGLE_GAINS", "1").strip().lower() not in ("0", "false", "no", "off")
+_giggle_cache: tuple[float, str] = (-1.0, "")
+_giggle_lock = threading.Lock()
+
+
+def _giggle_mtime() -> float:
+    pkg = os.path.join(GIGGLE_GAINS_DIR, "giggle_gains")
+    try:
+        return max(os.path.getmtime(os.path.join(pkg, f)) for f in os.listdir(pkg) if f.endswith(".py"))
+    except (OSError, ValueError):
+        return 0.0
+
+
+def giggle_gains_brief() -> str:
+    """Giggle Gains' current humor brief (playbook.ai_voice_brief), or "" if
+    the project isn't there or fails to load."""
+    global _giggle_cache
+    if not _GIGGLE_ON:
+        return ""
+    mtime = _giggle_mtime()
+    if not mtime:
+        return ""
+    with _giggle_lock:
+        if _giggle_cache[0] == mtime:
+            return _giggle_cache[1]
+        import importlib
+        import sys as _sys
+        text = ""
+        try:
+            if GIGGLE_GAINS_DIR not in _sys.path:
+                _sys.path.append(GIGGLE_GAINS_DIR)
+            mod = _sys.modules.get("giggle_gains.playbook")
+            mod = importlib.reload(mod) if mod else importlib.import_module("giggle_gains.playbook")
+            text = mod.ai_voice_brief().strip()
+            logger.info(f"Loaded Giggle Gains humor brief ({len(text)} chars, "
+                        f"{len(getattr(mod, 'VOICES', {}))} voices)")
+        except Exception as e:
+            logger.warning(f"Couldn't load the Giggle Gains playbook: {e}")
+        _giggle_cache = (mtime, text)
+        return text
+
+
+def _giggle_note(channel_name: str) -> str:
+    if _vent_strict(channel_name):
+        return ""
+    brief = giggle_gains_brief()
+    if not brief:
+        return ""
+    return (
+        "\n\nHUMOR TOOLKIT (from the Giggle Gains comedy trainer your owner keeps "
+        "updated). It's a bench of moves, voices and principles to think with "
+        "while you come up with ideas: any draft may borrow a move, a formula or "
+        "a principle, or combine one with your own. It is written for a human "
+        "student, so everything gets translated into YOUR voice and rules above "
+        "(your length limit, no first person, your persona). Example lines in it "
+        "are for tone only: never reuse them, and never name or reference the "
+        "sources it mentions. Where it conflicts with your rules, your rules win.\n"
+        + brief
+    )
+
+
 def compose_batch(
     context: str, target: dict, channel_name: str, reply_count: int, user_ids: set[str],
     count: int, recent_replies: Sequence[str] = (), encouraging: bool = False,
@@ -2202,7 +2320,7 @@ def compose_batch(
     rubric = load_rubric()
     system = _system_for(
         target, channel_name, reply_count, recent_replies,
-        extra=f"\n\nGuidelines:\n{rubric}", encouraging=encouraging,
+        extra=f"{_giggle_note(channel_name)}\n\nGuidelines:\n{rubric}", encouraging=encouraging,
         tone_note=tone_note, speech_note=speech_note, late_note=influence_note,
     )
     user = (
