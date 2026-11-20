@@ -8299,3 +8299,14 @@
 [2026-11-20 22:14:52Z] 🐌 Slow Claude Code call: memory_pick on claude-haiku-4-5-20251001 took 42.4s
 [2026-11-20 22:16:12Z] 🛑 Porygon Z's jugglez reply held back from the approval popup
 [2026-11-20 22:16:36Z] 🕰️ Watcher was offline ~3 min — checking for missed jugglez summons since 2026-11-20 22:13 UTC
+[2026-11-20 22:17:46Z] 🐌 Slow Claude Code call: memory_pick on claude-haiku-4-5-20251001 took 28.8s
+[2026-11-20 22:19:06Z] ⚠️ Instagram check for @turtle.prism returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
+[2026-11-20 22:19:06Z] ⚠️ Instagram check for @lxzycxlm returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
