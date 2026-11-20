@@ -94,6 +94,15 @@ copy .env.example .env      # then fill in the real token/channel ID
 python porygon_send.py
 ```
 
+The control panel's own manual-message box can also reply to a specific
+message. Paste a message ID, a message link (right-click > Copy Message
+Link), or the "channel-message" pair from Shift+Copy ID. A link or pair sets
+the channel automatically. With a bare ID the panel searches the channels for
+it, or you can pick the channel yourself; picking a channel no longer clears
+the ID. Messages are looked up with both the main bot's and Z's token, since
+either may be the only one that can read a channel. `@Name` in a manual line
+becomes a real ping (see *Tagging people* below).
+
 
 
 
@@ -146,21 +155,33 @@ How a reply gets made, in one API call whose JSON keys are answered in order:
 summons and the unprompted scan actually run:
 
 1. **Register plan.** The batch (`Z_COMMAND_MAX_ATTEMPTS` /
-   `Z_AUTO_DRAFT_COUNT`, default 12) is split into groups: Z's default voice,
+   `Z_AUTO_DRAFT_COUNT`, default 8) is split into groups: Z's default voice,
    plus two different costumes. The costume share follows the Tone shift
    slider, capped so the default voice keeps at least a third
    (`Z_BATCH_COSTUME_SHARE` pins it). Each group gets its own system prompt
-   and speech-clip roll, and all groups draft in parallel. Before this, one
-   costume roll decided the whole batch.
+   and speech-clip roll. Groups are split into calls of at most
+   `Z_DRAFT_CHUNK` (3) drafts, and every call runs at once, because several
+   small calls finish far sooner than one big one.
 2. **Shape mix.** Each batch has to include advice, self-revelation and
    escalation (the three moves). At most a third can use the
    "[agency] did X, Y still Z" template. Each batch also gets six borrowed
    systems sampled fresh from a pool, instead of a fixed list the model
    walked top to bottom.
-3. **Score** everything in one batched judge call.
+3. **Score** everything, in parallel judge calls of `Z_SCORE_CHUNK` (4)
+   candidates each.
 4. **Punch-up.** The best `Z_PUNCHUP_COUNT` (default 4) go back once with the
    judge's own fix note, keeping their register. The revisions are scored and
-   compete with the originals.
+   compete with the originals. If the best draft already scores
+   `Z_PUNCHUP_SKIP_AT` (5) or more, this round is skipped.
+
+Drafting runs at `Z_COMPOSE_EFFORT` (medium) and judging at `Z_SCORE_EFFORT`
+(low). Together with the smaller batch, that brought a summon from about 5
+minutes to about 1½ through Claude Code. Set `Z_COMPOSE_EFFORT=high` for
+better lines at roughly double the wait.
+
+Z reads the last `Z_CONTEXT_DEPTH` (50) messages of the channel, plus the
+message being replied to if it's older. Mentions in them show up as
+`@Name`, and Z's own as `@Porygon Z (you)`.
 
 On top of that, every composed line is judged again on the rubric's 1-7
 scale (`z_brain.score_reply`) before it's used. `!z` and a direct summon
@@ -213,8 +234,8 @@ costume is worn at all.
 
 ### Speech training
 
-Any `.txt` file in `z_speech/` is a comedic influence on Z. On about half
-of composes (`Z_SPEECH_RATE`, default 0.5) one random ~900-character excerpt
+Any `.txt` file in `z_speech/` is a comedic influence on Z. On about a fifth
+of composes (`Z_SPEECH_RATE`, default 0.2) one random ~900-character excerpt
 (`Z_SPEECH_CHARS`) is put in the system prompt as a sense of humor to absorb
 (confident insane claims, escalation, swerves, deflated brags), with explicit
 orders not to reuse any of its words, slang or topics. It's framed as a basis
@@ -229,8 +250,11 @@ blend.
 A transcript in `z_speech/` that also has a `<same name>.style.md` file
 becomes an influence register. The `.style.md` file is a short description of
 that source's comedic delivery plus a few invented example lines. About a
-third of every batch (`Z_INFLUENCE_SHARE`, default 0.33) is written in one or
-two of these, split between sources. Each of those drafts gets its own
+share of every batch (`Z_INFLUENCE_SHARE`, default 0.12, about one draft in
+eight) is written in one or two of these, split between sources. The persona
+calls them seasoning, not his voice: a line should sound like Porygon Z, not
+an impression. A `max_words: N` line in a `.style.md` file caps that source's
+drafts and their punch-ups (Dracula Flow is 14: one flex, one collapse). Each of those drafts gets its own
 transcript sample, and the influence note is placed at the very end of the
 system prompt. That group's batch instructions also drop the usual
 borrowed-system and three-moves requirements, which were overriding the
@@ -274,6 +298,97 @@ mode** checkbox (about 60% of drafts personal, and the reply shown is the
 best personal one), and a **Learn now** button that runs the scan
 immediately. The memories dug for each reply are listed under it.
 
+### Who Z is (self-memory)
+
+`z_self.py` is the same idea as people's memories, pointed at Z. Each profile
+scan collects the messages that are about Z (mentions, its nickname, `!z`,
+replies to its posts) plus Z's own posts, and folds them into up to
+`Z_SELF_MAX` (60) tagged facts in `z_self.json` (gitignored): fanart, how he's
+pictured, nicknames, running jokes, history, how particular people treat him,
+stances and bits he keeps up. The first scan backfills a few pages per
+channel.
+
+Every compose gets a short "who you are" note: a fixed canon line (Porygon-Z
+the Pokémon, the server's bot-pet, built by father) and `Z_SELF_NOTE_FACTS`
+(10) of those facts, half the most reinforced and half random. He's told to
+use them only when they make that particular reply better; most replies
+shouldn't mention them. Edit `z_self.json` to correct or add facts.
+
+### Seeing pictures
+
+Z looks at pictures, through the same API calls that draft and judge. Images
+are shrunk to 1568px and re-encoded when large.
+
+- **The message being answered** and the one it replies to: up to
+  `Z_MAX_IMAGES` (3) attachments or image embeds.
+- **Recent pictures**, in channels whose name matches
+  `Z_ART_CHANNEL_PATTERN` (art, craft, draw, photo…) or when the message asks
+  about art, drawings or pictures, or what Z thinks: up to `Z_RECENT_IMAGES`
+  (6) uploads from the last `Z_RECENT_IMAGE_HOURS` (24) of the context, each
+  labelled with who posted it. GIF and link previews are skipped.
+- **Look first.** When the message asks about the pictures, one call
+  describes what is literally in each one before drafting. Every draft
+  builds on that description, details the chat already pointed out count as
+  used up, and the judge caps any line that dodges the art at 3.
+
+Each picture is sent with every drafting and judging call of that reply.
+Context lines show `[picture attached]` wherever a message had one. Test Chat
+has a **Picture…** button to attach one to your next message.
+
+### Tagging people
+
+Z can ping someone by writing `@Name`. Each compose lists the people in the
+conversation with the handle to use. He's told to tag only when it adds
+something (pulling someone into the bit, handing someone a job), never just
+to address the person he's replying to. Just before posting,
+`z_brain.resolve_mentions` turns `@Name` into `<@id>`, matching display
+names, usernames and first words like `@Wolf`, and ignoring anything
+ambiguous. `discord_roles` then allows pings for exactly those users. Never
+@everyone or roles, and never the author of the replied-to message.
+
+Names nobody can type go in `z_name_aliases.json` (gitignored), as
+`{"user id": ["Meru"]}`. The member list comes from the guild members
+endpoint (needs the Server Members Intent), refreshed every 6 hours, with
+profiles and recent speakers as a fallback.
+
+### Approval popup
+
+When father summons Z (an @, the nickname, a reply to Z, or a jugglez
+react), `z_approve.py` opens a small always-on-top window for
+`Z_APPROVE_SECONDS` (5) while Z drafts.
+
+- **Enter** turns it into a review window. Once the draft is ready you can
+  edit and send it (Enter), **Redo with feedback** (every note so far is
+  kept, as in the panel), **Re-roll** from scratch (or Enter with an empty
+  note), or **Don't send**.
+- **Esc**, closing the window, or the countdown running out lets the reply
+  post as normal.
+
+The window moves itself onto whichever virtual desktop you're looking at,
+and keeps the keyboard during the countdown. While it's open for review the
+watcher waits for you. `z_approve.log` records what each popup saw and did,
+including crashes. `Z_APPROVE_SUMMONS=0` turns it off.
+
+### Where the model calls go
+
+On this machine Z runs every model call through the local Claude Code CLI
+(`claude -p`, signed in with your claude.ai subscription) instead of the paid
+API (`Z_BACKEND=claude-code`, the default). Each call is a fresh headless
+session with only Z's own system prompt: no tools, no settings, CLAUDE.md or
+MCP servers, nothing saved, and the API key stripped from its environment so
+the subscription login is used. Pictures go in as stream-json content blocks.
+At most `Z_CLAUDE_CODE_PARALLEL` (8) run at once.
+
+If a call fails (usage limit, not signed in, CLI missing), it falls back to
+the API when `Z_API_FALLBACK` is on and an `ANTHROPIC_API_KEY` is set, and
+logs a 💸 line in the activity log. `Z_BACKEND=api` sends everything to the
+API again. Calls share your Claude Code usage limits. Anthropic's
+subscription terms are written for your own personal use, so check them
+before relying on this for a bot other people talk to.
+
+Post-reply chores (the style note and the name record) and the 12-hourly
+memory scan run on background threads, so a summon never queues behind them.
+
 ### Running style note
 
 `z_style.py` keeps Z's own style from wandering reply to reply. After every
@@ -294,7 +409,8 @@ The panel's **Test Chat** tab runs the same `compose_scored` pipeline against
 a private conversation. Nothing posts, and nothing is recorded to reply
 history or the style note. It shows the chosen line, its judge score,
 register and stage, plus every other draft with its score and fix note.
-Speech clips can be forced on or off for A/B testing.
+Speech clips can be forced on or off for A/B testing. **Picture…** attaches
+an image to your next message.
 
 Each reply has **1–7 rating buttons** and an optional "why". A rating is
 saved to `z_owner_ratings.json` (gitignored, since it holds your private test messages) and appended to the rubric as an *Owner ratings from Test Chat* table
