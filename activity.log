@@ -8284,3 +8284,14 @@
 [2026-11-20 21:59:44Z] 🐌 Slow Claude Code call: compose_batch on claude-sonnet-5 took 35.9s
 [2026-11-20 22:07:31Z] 🛑 Porygon Z's jugglez reply held back from the approval popup
 [2026-11-20 22:07:37Z] 💸 Claude Code call failed (compose_batch), used the paid API instead
+[2026-11-20 22:08:07Z] 🕰️ Watcher was offline ~17 min — checking for missed jugglez summons since 2026-11-20 21:50 UTC
+[2026-11-20 22:09:25Z] ⚠️ Instagram check for @turtle.prism returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
+[2026-11-20 22:09:25Z] ⚠️ Instagram check for @lxzycxlm returned 404: <!DOCTYPE html>
+<html lang="None" class="no-js not-logged-in ">
+    <head>
+        <meta charset="utf-8">
+        <meta 
