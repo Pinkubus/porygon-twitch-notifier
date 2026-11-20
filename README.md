@@ -167,8 +167,10 @@ summons and the unprompted scan actually run:
    "[agency] did X, Y still Z" template. Each batch also gets six borrowed
    systems sampled fresh from a pool, instead of a fixed list the model
    walked top to bottom.
-3. **Score** everything, in parallel judge calls of `Z_SCORE_CHUNK` (4)
-   candidates each.
+3. **Score** each draft chunk the moment it finishes, so judging overlaps
+   the drafts still being written. Then the best `Z_FINAL_COMPARE` (4) are
+   judged again side by side, since a judge's scores only rank reliably within
+   one call, and that comparison decides the order among them.
 4. **Punch-up.** The best `Z_PUNCHUP_COUNT` (default 4) go back once with the
    judge's own fix note, keeping their register. The revisions are scored and
    compete with the originals. If the best draft already scores
@@ -326,10 +328,15 @@ are shrunk to 1568px and re-encoded when large.
   about art, drawings or pictures, or what Z thinks: up to `Z_RECENT_IMAGES`
   (6) uploads from the last `Z_RECENT_IMAGE_HOURS` (24) of the context, each
   labelled with who posted it. GIF and link previews are skipped.
-- **Look first.** When the message asks about the pictures, one call
-  describes what is literally in each one before drafting. Every draft
-  builds on that description, details the chat already pointed out count as
-  used up, and the judge caps any line that dodges the art at 3.
+- **Look first.** Every attached picture gets one call describing what it
+  depicts (what kind of picture, who or what, what's going on, what's
+  notable) before drafting. It runs alongside the banter check and the
+  memory pick.
+- **Context, not an assignment.** Normally a picture is material: Z ties it
+  in only when he has something clever to do with it. When someone asks for
+  his take ("what do you think", "rate my outfit"), he has to give a real
+  opinion on what it depicts, not list details to show he looked. The judge
+  scores on funny or clever only, and caps a take-less answer at 3.
 
 Each picture is sent with every drafting and judging call of that reply.
 Context lines show `[picture attached]` wherever a message had one. Test Chat
@@ -447,6 +454,14 @@ channel for messages Z posted as replies, paired with what they answered
 the same conversation with Z's current personality, pictures and banter
 check included, and see the best line plus every draft with its score.
 Nothing is posted, and nothing goes into reply history or the style note.
+
+Each re-roll has a **feedback** box. Feedback goes to `z_directives.propose`,
+which answers with a plain summary of how Z's personality would change and
+the exact edits to his standing notes (add, change or remove). **Approve**
+saves them; **Re-evaluate** asks again, with an optional "where it's off"
+note. Approved notes live in `z_directives.json` (gitignored), go into every
+compose and into the judge's rubric, and can be removed from the **Personality
+notes** window.
 
 ### Tuning it
 

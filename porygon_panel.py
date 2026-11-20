@@ -70,6 +70,7 @@ import porygon_z  # noqa: E402
 import scheduled_polls  # noqa: E402
 import z_brain  # noqa: E402
 import z_live  # noqa: E402
+import z_directives  # noqa: E402
 import z_memory  # noqa: E402
 import z_profiles  # noqa: E402
 
@@ -1792,6 +1793,8 @@ class Panel(tk.Tk):
         ).pack(side="left", padx=(16, 0))
         self.lab_roll_btn = _button(top, "Re-roll selected", self._lab_reroll, color=PINK_DEEP)
         self.lab_roll_btn.pack(side="right")
+        _button(top, "Personality notes", self._lab_show_directives, color=PANEL_HI).pack(
+            side="right", padx=(0, 8))
 
         style = ttk.Style(self)
         style.configure("Lab.Treeview", background=PANEL_HI, fieldbackground=PANEL_HI, foreground=TEXT,
@@ -2000,8 +2003,140 @@ class Panel(tk.Tk):
                 tag = r["register"] + (", punched up" if r["stage"] == "punch-up" else "")
                 self._lab_write(f"[{st}] ({tag}) {r['line']}"
                                 + (f"  — fix: {r['fix']}" if r.get("fix") else "") + "\n", "draft")
+        it = self._lab_selected() or {}
+        t = it.get("target") or {}
+        case = {
+            "who": (t.get("author") or {}).get("global_name") or (t.get("author") or {}).get("username") or "someone",
+            "channel": it.get("channel", "?"),
+            "message": (t.get("content") or "").strip() + (" [picture]" if z_brain._has_image(t) else ""),
+            "original": ((it.get("z") or {}).get("content") or "").strip(),
+            "rerolled": best["line"],
+            "drafts": [r["line"] for r in ranked[1:7]],
+        }
+        self._lab_feedback_row(case)
         self._lab_write("\n")
         self.lab_note.config(text=f"best of {len(ranked)} · judge {score_txt}", fg=MUTED)
+
+    # ---- feedback -> proposed personality change -> approve / re-evaluate ----
+    def _lab_embed(self, widget):
+        self.lab_log.config(state="normal")
+        self.lab_log.window_create("end", window=widget)
+        self.lab_log.insert("end", "\n")
+        self.lab_log.config(state="disabled")
+        self.lab_log.see("end")
+
+    def _lab_feedback_row(self, case: dict):
+        row = tk.Frame(self.lab_log, bg=PANEL_HI)
+        tk.Label(row, text="feedback:", font=FONT_SM, fg=MUTED, bg=PANEL_HI).pack(side="left")
+        entry = tk.Entry(row, font=FONT, fg=TEXT, bg=PANEL, insertbackground=TEXT, relief="flat", width=60)
+        entry.pack(side="left", padx=(6, 6), ipady=3)
+        btn = _button(row, "Send feedback", None, color=BLUE_DEEP)
+
+        def send(event=None):
+            fb = entry.get().strip()
+            if not fb or self._lab_busy:
+                return
+            btn.config(state="disabled")
+            entry.config(state="disabled")
+            self._lab_propose(case, fb, None, "")
+
+        btn.config(command=send)
+        entry.bind("<Return>", send)
+        btn.pack(side="left")
+        self._lab_embed(row)
+
+    def _lab_propose(self, case: dict, feedback: str, prior, correction: str):
+        self._lab_busy = True
+        self.lab_note.config(text="working out what that changes… (~20s)", fg=YELLOW)
+
+        def work():
+            try:
+                proposal = z_directives.propose(case, feedback, prior, correction)
+                self.after(0, lambda: self._lab_proposed(case, feedback, proposal, None))
+            except Exception as e:
+                err = str(e) or type(e).__name__
+                self.after(0, lambda: self._lab_proposed(case, feedback, None, err))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _lab_proposed(self, case, feedback, proposal, error):
+        self._lab_busy = False
+        if error:
+            self._lab_write(f"(couldn't propose a change: {error})\n", "err")
+            self.lab_note.config(text="failed", fg=RED)
+            return
+        self.lab_note.config(text="review the proposed change", fg=MUTED)
+        self._lab_write("Proposed personality change\n", "z")
+        self._lab_write((proposal["summary"] or "(no summary)") + "\n")
+        if proposal["changes"]:
+            for c in proposal["changes"]:
+                self._lab_write("   " + z_directives.describe(c) + "\n", "draft")
+        else:
+            self._lab_write("   (no changes to the notes)\n", "draft")
+
+        row = tk.Frame(self.lab_log, bg=PANEL_HI)
+        approve = _button(row, "Approve", None, color=PINK_DEEP)
+        approve.pack(side="left")
+        again = _button(row, "Re-evaluate", None, color=PANEL)
+        again.pack(side="left", padx=(8, 6))
+        tk.Label(row, text="where it's off (optional):", font=FONT_SM, fg=MUTED, bg=PANEL_HI).pack(side="left")
+        note = tk.Entry(row, font=FONT, fg=TEXT, bg=PANEL, insertbackground=TEXT, relief="flat", width=44)
+        note.pack(side="left", padx=(6, 0), ipady=3)
+
+        def lock():
+            for w in (approve, again, note):
+                w.config(state="disabled")
+
+        def do_approve():
+            if self._lab_busy:
+                return
+            lock()
+            try:
+                n = z_directives.apply(proposal, feedback)
+            except Exception as e:
+                self._lab_write(f"(save failed: {e})\n", "err")
+                return
+            self._lab_write(f"Approved. Z now has {n} standing note(s); re-roll to see it in action.\n\n", "meta")
+            self.lab_note.config(text="personality updated", fg=BLUE)
+
+        def do_again(event=None):
+            if self._lab_busy:
+                return
+            lock()
+            self._lab_propose(case, feedback, proposal, note.get().strip())
+
+        approve.config(command=do_approve)
+        again.config(command=do_again)
+        note.bind("<Return>", do_again)
+        self._lab_embed(row)
+
+    def _lab_show_directives(self):
+        """Everything father has approved so far, with a way to drop any."""
+        win = tk.Toplevel(self)
+        win.title("Z's standing personality notes")
+        win.configure(bg=PANEL)
+        win.geometry("640x420")
+        body = tk.Frame(win, bg=PANEL, padx=14, pady=12)
+        body.pack(fill="both", expand=True)
+
+        def render():
+            for w in body.winfo_children():
+                w.destroy()
+            items = z_directives.load()
+            tk.Label(body, text=f"{len(items)} note(s). These go into every draft and the judge's rubric.",
+                     font=FONT, fg=MUTED, bg=PANEL, anchor="w").pack(fill="x", pady=(0, 8))
+            for d in items:
+                r = tk.Frame(body, bg=PANEL_HI)
+                r.pack(fill="x", pady=2)
+                tk.Label(r, text=d["text"], font=FONT, fg=TEXT, bg=PANEL_HI, anchor="w", justify="left",
+                         wraplength=520).pack(side="left", fill="x", expand=True, padx=8, pady=4)
+                _button(r, "Remove", lambda i=d["id"]: (z_directives.remove(i), render()),
+                        color=PANEL).pack(side="right", padx=4)
+            if not items:
+                tk.Label(body, text="(none yet: send feedback on a re-roll)", font=FONT, fg=DIM,
+                         bg=PANEL).pack(anchor="w")
+
+        render()
 
     def _build_chat(self, master):
         master.columnconfigure(0, weight=1)

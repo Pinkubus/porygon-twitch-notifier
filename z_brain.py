@@ -1088,7 +1088,8 @@ def load_rubric() -> str:
     except Exception as e:
         logger.warning(f"Failed to load rubric: {e}")
         return ""
-    return text + _owner_ratings_block()
+    import z_directives  # deferred: z_directives imports this module
+    return text + _owner_ratings_block() + z_directives.judge_note()
 
 
 def load_profiles() -> dict:
@@ -1351,12 +1352,13 @@ def _download_image(a: dict) -> Optional[dict]:
 
 
 _LOOK_SYSTEM = """\
-You are describing pictures for someone who can't see them. For each \
-picture, in order, list what is literally visible: the subject, pose, \
-clothes piece by piece, colours, accessories, art style and medium, any \
-text or annotations, the background, and anything odd or unexpected. \
-Concrete nouns, no opinions, no guessing at what people said about it. \
-Format: "Picture N: ..." one line each, 60 words or fewer per picture."""
+You look at pictures for someone who can't see them. For each picture, in \
+order, say what it depicts: what kind of picture it is (photo, screenshot, \
+fanart, meme, selfie, reference pic...), who or what it shows and what's \
+going on, what it's for or about given its label, and anything notable, odd \
+or funny about it. Then add the few concrete details that matter most. Don't \
+guess at things you can't see, and don't give opinions. \
+Format: "Picture N: ..." one line each, 70 words or fewer per picture."""
 
 
 def _look_at(target: dict) -> str:
@@ -1379,26 +1381,33 @@ def _image_note_for(target: dict) -> str:
     images = target_images(target)
     asks = _asks_about_images(target)
     note = _image_note(images, asks)
-    if asks and images:
+    if images:
         seen = _look_at(target)
         if seen:
-            note += (
-                "What you see when you look at them yourself:\n" + seen + "\n\n"
-                "Build the reply on what YOU see in the art, above. Details the chat "
-                "already talked about (in the conversation) are spent: notice "
-                "something nobody mentioned yet, or say what you make of it, "
-                "rather than repeating their observations back.\n\n"
-            )
+            note += "What the pictures depict:\n" + seen + "\n\n"
+            if asks:
+                note += (
+                    "Things the chat already said about them are spent; your "
+                    "take should be your own.\n\n"
+                )
     return note
 
 
+# Asking for Z's take, as opposed to merely mentioning a picture ("i showed
+# this pic to..."). Both an opinion ask and something visual have to be there.
+_OPINION_ASK_RE = re.compile(
+    r"\b(what (do|did|would) (you|u|ya|z) think|what('?s| is) your (take|opinion|verdict)|"
+    r"thoughts\?|opinions?\?|rate (it|this|these|them|my|the)|how (do|does) (it|this|these) look|"
+    r"do you like|you like (it|this|these|them)|review (it|this|these))", re.I)
+
+
 def _asks_about_images(target: dict) -> bool:
-    return bool(_ART_ASK_RE.search(target.get("content") or ""))
+    text = target.get("content") or ""
+    return bool(_OPINION_ASK_RE.search(text) and _ART_ASK_RE.search(text))
 
 
 def _wants_recent_images(target: dict, channel_name: str) -> bool:
-    return bool(_ART_CHANNEL_RE.search(channel_name or "")
-                or _ART_ASK_RE.search(target.get("content") or ""))
+    return bool(_ART_CHANNEL_RE.search(channel_name or "") or _asks_about_images(target))
 
 
 def image_from_bytes(raw: bytes) -> Optional[dict]:
@@ -1508,33 +1517,24 @@ def _image_note(images: Sequence[dict], asks_about: bool = False) -> str:
     if not images:
         return ""
     n = len(images)
-    if asks_about and any(str(im.get("label", "")).startswith("posted earlier") for im in images):
+    pics = f"{n} picture{'s' if n > 1 else ''}"
+    if asks_about:
         return (
-            f"{n} picture{'s' if n > 1 else ''} from this conversation are shown "
-            "above, each labelled with who posted it. The >>> message is asking "
-            "what you think of them. ANSWER THAT. Every single reply must react "
-            "to the actual art: name a specific thing you can see in it (a piece "
-            "of the outfit, a colour, an accessory, a pose, a detail somebody "
-            "added) and give your verdict on it, in your voice. A reply that "
-            "could have been written without looking at the pictures is a "
-            "failure, however funny. Art of you, Porygon Z, is fanart of you and "
-            "you know it; who drew what is in the labels.\n\n"
-        )
-    if any(str(im.get("label", "")).startswith("posted earlier") for im in images):
-        return (
-            f"{n} picture{'s' if n > 1 else ''} from this conversation are shown "
-            "above, each labelled with who posted it. If the >>> message asks "
-            "about them (what you think, the fanart, the drawings), react to "
-            "the actual pictures: specific details, and who drew what. Otherwise "
-            "they are just background. Art of you, Porygon Z, is fanart of you "
-            "and you know it.\n\n"
+            f"{pics} from this conversation are shown above (labelled with who "
+            "posted each). The >>> message asks what you think of them, so give "
+            "your actual take on what they depict: an opinion, a reaction, "
+            "something clever or funny about what the picture IS or means, in "
+            "your voice. Don't list details or colours to prove you looked; "
+            "that's not a take. Art of you, Porygon Z, is fanart of you and you "
+            "know it.\n\n"
         )
     return (
-        f"The >>> message (or the one it replies to) has {n} picture"
-        f"{'s' if n > 1 else ''} attached, shown above. Look at it properly: "
-        "the reply should react to what is actually in the picture (specific "
-        "details, not \"nice pic\"). If it's art of you, Porygon-Z, it's "
-        "fanart of you and you know it.\n\n"
+        f"{pics} came with this conversation and are shown above. Know what "
+        "they show while you come up with ideas, and tie one in only when you "
+        "have something genuinely clever or funny to do with it. Otherwise "
+        "answer whatever is funniest in the message itself; the picture is "
+        "context, not an assignment. Never mention details just to prove you "
+        "can see. Art of you, Porygon Z, is fanart of you.\n\n"
     )
 
 
@@ -1668,6 +1668,10 @@ def _system_for(
         if bit:
             system += "\n" + z_bits.bit_note(bit)
     system += _recent_replies_note(recent_replies)
+    import z_directives  # deferred: z_directives imports this module
+    notes = z_directives.prompt_note()
+    if notes:
+        system += "\n\n" + notes
     return system + extra + (("\n\n" + late_note) if late_note else "")
 
 
@@ -1999,10 +2003,10 @@ def _register_plan(count: int, reply_count: int, channel_name: str = "",
 
 
 def _pick_personal(target: dict, channel_name: str, context: str, encouraging: bool,
-                   personal_share: Optional[float]) -> Optional[dict]:
+                   personal_share: Optional[float], check_vent: bool = True) -> Optional[dict]:
     """What to dig for about the person being answered, or None (nothing
     remembered, a vent channel, an encouraging reply, or personal turned off)."""
-    if encouraging or _vent_strict(channel_name):
+    if encouraging or (check_vent and _vent_strict(channel_name)):
         return None
     share = _PERSONAL_SHARE if personal_share is None else personal_share
     uid = (target.get("author") or {}).get("id")
@@ -2021,14 +2025,18 @@ def _pick_personal(target: dict, channel_name: str, context: str, encouraging: b
 def _draft_pool(
     context: str, target: dict, channel_name: str, reply_count: int, user_ids: set[str],
     count: int, recent_replies: Sequence[str] = (), encouraging: bool = False,
-    personal_share: Optional[float] = None,
+    personal_share: Optional[float] = None, personal="auto",
+    on_items: Optional[Callable[[list[dict]], None]] = None,
 ) -> list[dict]:
     """Every group of the register plan drafts in parallel. Returns
     [{"line", "register"}] (plus "personal" on personal drafts),
-    de-duplicated, in plan order."""
+    de-duplicated, in plan order. `personal` is a memory pick made earlier
+    (or None); `on_items` is called with each chunk's drafts as soon as that
+    chunk finishes, in its thread, so scoring overlaps the other drafts."""
     from concurrent.futures import ThreadPoolExecutor
 
-    personal = _pick_personal(target, channel_name, context, encouraging, personal_share)
+    if personal == "auto":
+        personal = _pick_personal(target, channel_name, context, encouraging, personal_share)
     plan = _register_plan(count, reply_count, channel_name, encouraging,
                           personal=personal, personal_share=personal_share)
     personal_info = None
@@ -2053,6 +2061,11 @@ def _draft_pool(
                 if label == "personal":
                     for it in items:
                         it["personal"] = personal_info
+                if on_items:
+                    try:
+                        on_items(items)
+                    except Exception as e:
+                        logger.warning(f"Chunk scoring failed: {e}")
                 return items
         return []
 
@@ -2077,6 +2090,8 @@ def _draft_pool(
 
 
 _DRAFT_CHUNK = int(os.environ.get("Z_DRAFT_CHUNK", 3))
+# How many of the best chunk-scored drafts get re-judged together at the end.
+_FINAL_COMPARE = int(os.environ.get("Z_FINAL_COMPARE", 4))
 _SCORE_CHUNK = int(os.environ.get("Z_SCORE_CHUNK", 4))
 
 
@@ -2165,46 +2180,99 @@ def compose_scored(
     score, a punch-up pass on the best few, and a score for the revisions.
     Returns every candidate as {"line", "score", "fix", "register", "stage"},
     best first. Unscored candidates sort last with score None."""
+    from concurrent.futures import ThreadPoolExecutor
     rubric = load_rubric()
     msg_text = target.get("content") or ""
-    if is_delicate(channel_name):
-        banter = not encouraging and is_banter(context)
-        _banter_channels[channel_name] = banter
-        logger.info(f"#{channel_name}: {'banter, full personality' if banter else 'venting rules'}")
-    images = target_images(target, channel_name)  # downloaded once, cached on target
-    if images and _asks_about_images(target):
-        _look_at(target)
-    pool = _draft_pool(
-        context, target, channel_name, reply_count, user_ids, count,
-        recent_replies=recent_replies, encouraging=encouraging,
-        personal_share=personal_share,
-    )
-    if not pool:
-        return []
 
-    def attach(items, verdicts, start):
-        for i, (item, v) in enumerate(zip(items, verdicts), start=start):
-            score = (v or {}).get("score")
-            item["score"] = score if isinstance(score, (int, float)) else None
-            item["fix"] = (v or {}).get("fix", "") or ""
-            if progress_cb:
-                progress_cb(i, item["score"])
+    # Prep, all at once: the vent-channel banter check, downloading and
+    # describing the pictures, and choosing which memories to dig for.
+    def prep_banter():
+        if is_delicate(channel_name):
+            banter = not encouraging and is_banter(context)
+            _banter_channels[channel_name] = banter
+            logger.info(f"#{channel_name}: {'banter, full personality' if banter else 'venting rules'}")
 
-    for item in pool:
-        item["stage"] = "draft"
+    def prep_images():
+        found = target_images(target, channel_name)  # cached on target
+        if found:
+            _look_at(target)
+        return found
+
+    def prep_personal():
+        # Picked as if the channel were open; dropped below if the banter
+        # check says vent rules apply.
+        if encouraging:
+            return None
+        return _pick_personal(target, channel_name, context, encouraging, personal_share,
+                              check_vent=False)
+
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        f_personal = ex.submit(prep_personal)
+        f_images = ex.submit(prep_images)
+        f_banter = ex.submit(prep_banter)
+        f_banter.result()
+        images = f_images.result()
+        personal = f_personal.result()
+    if personal and _vent_strict(channel_name):
+        personal = None
+
     # Personal drafts are callbacks; without the memories behind them the
     # judge reads "tie a string to the phone" as random. Show it what Z knows.
-    info = next((p["personal"] for p in pool if p.get("personal")), None)
     about = ""
-    if info:
+    if personal:
         about = (
             "Background the bot knows about this person (some candidates are "
             "callbacks to it; a callback that only lands because it's them is "
             "worth more, as long as it still answers the message):\n"
-            + "\n".join(f"- {m}" for m in info["memories"])
+            + "\n".join(f"- {m['text']}" for m in personal["memories"])
         )
-    attach(pool, _score_parallel(msg_text, [p["line"] for p in pool], rubric,
-                                 encouraging=encouraging, about=about, images=images), 1)
+
+    counter = [0]
+    counter_lock = threading.Lock()
+
+    def attach(items, verdicts, start=None):
+        for item, v in zip(items, verdicts):
+            score = (v or {}).get("score")
+            item["score"] = score if isinstance(score, (int, float)) else None
+            item["fix"] = (v or {}).get("fix", "") or ""
+            with counter_lock:
+                counter[0] += 1
+                n = counter[0]
+            if progress_cb:
+                progress_cb(n, item["score"])
+
+    def score_chunk(items):
+        for item in items:
+            item["stage"] = "draft"
+        attach(items, score_batch(msg_text, [it["line"] for it in items], rubric, MODEL_SCORE,
+                                  encouraging=encouraging, about=about, images=images))
+
+    pool = _draft_pool(
+        context, target, channel_name, reply_count, user_ids, count,
+        recent_replies=recent_replies, encouraging=encouraging,
+        personal_share=personal_share, personal=personal, on_items=score_chunk,
+    )
+    if not pool:
+        return []
+    for item in pool:
+        item.setdefault("stage", "draft")
+        item.setdefault("score", None)
+        item.setdefault("fix", "")
+
+    # Each chunk was judged on its own, and a judge's numbers only rank
+    # reliably within one call. So the top few from all chunks get one more
+    # look side by side, and that comparison decides the order among them.
+    top = sorted((p for p in pool if p["score"] is not None), key=lambda p: p["score"], reverse=True)
+    top = top[:_FINAL_COMPARE]
+    if len(top) >= 2:
+        verdicts = score_batch(msg_text, [p["line"] for p in top], rubric, MODEL_SCORE,
+                               encouraging=encouraging, about=about, images=images)
+        for item, v in zip(top, verdicts):
+            score = (v or {}).get("score")
+            if isinstance(score, (int, float)):
+                item["chunk_score"], item["score"] = item["score"], score
+                item["fix"] = (v or {}).get("fix", "") or item["fix"]
+            item["finalist"] = True
 
     if punch_up and _PUNCHUP_COUNT > 0:
         ranked = sorted((p for p in pool if p["score"] is not None),
@@ -2221,7 +2289,7 @@ def compose_scored(
                 if new and new.strip().lower() not in known:
                     known.add(new.strip().lower())
                     fresh.append({"line": new, "register": orig["register"],
-                                  "stage": "punch-up", "from": orig["line"],
+                                  "stage": "punch-up", "from": orig["line"], "finalist": True,
                                   **({"personal": orig["personal"]} if orig.get("personal") else {})})
             if fresh:
                 attach(fresh, _score_parallel(msg_text, [f["line"] for f in fresh], rubric,
@@ -2230,7 +2298,8 @@ def compose_scored(
                        len(pool) + 1)
                 pool.extend(fresh)
 
-    pool.sort(key=lambda p: -1 if p["score"] is None else p["score"], reverse=True)
+    pool.sort(key=lambda p: (bool(p.get("finalist")), -1 if p["score"] is None else p["score"]),
+              reverse=True)
     return pool
 
 
@@ -2420,12 +2489,15 @@ def score_batch(
     listing = "\n".join(f"{i}. {r}" for i, r in enumerate(replies, start=1))
     user = (
         f"They said: {msg_text}\n\n"
-        + (("(The pictures shown above are what they're asking about. A candidate "
-            "that doesn't react to a specific, visible detail of the art and give "
-            "a verdict on it is dodging the question: cap it at 3 however clever it is.)\n\n")
-           if images and _ART_ASK_RE.search(msg_text or "") else
-           ("(Their message came with the picture shown above; a reply that "
-            "reacts to something specific in it beats one that ignores it.)\n\n")
+        + (("(They're asking the bot's take on the pictures shown above. A "
+            "candidate with no real opinion on what the picture depicts is dodging: "
+            "cap it at 3. Naming details or colours earns nothing on its own; score "
+            "the take on how funny, clever or thoughtful it is.)\n\n")
+           if images and _asks_about_images({"content": msg_text}) else
+           ("(Pictures came with this conversation, shown above, as context. Using "
+            "the picture earns nothing by itself and ignoring it costs nothing; a "
+            "line that just points at what's in it to show it looked is a weak "
+            "line. Score on funny and clever, as always.)\n\n")
            if images else "")
         + (f"{about}\n\n" if about else "")
         + f"The bot drafted these {len(replies)} candidate replies:\n{listing}\n\n"
